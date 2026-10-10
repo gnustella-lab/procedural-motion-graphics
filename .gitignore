@@ -1,0 +1,29 @@
+# Video outputs (too large for standard git)
+*.mp4
+*.mov
+*.avi
+*.mkv
+*.webm
+
+# Python bytecode & cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+
+# IDE & OS files
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Temporary test outputs
+tmp/
+temp/
+preview.png

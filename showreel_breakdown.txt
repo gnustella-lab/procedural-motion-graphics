@@ -1,0 +1,152 @@
+MOTION DESIGN SHOWREEL 2026: BREAKDOWN
+=======================================
+
+Output:    showreel.mp4  (1920x1080, 30 fps, 15.0 s, 450 frames, H.264 / yuv420p)
+Source:    showreel.py   (one Python file, about 400 lines, Pillow + NumPy + imageio-ffmpeg)
+
+Every frame is generated in code. There's no stock footage, no image assets and no
+After Effects. Each frame is a pure function of time t, so the whole reel is
+deterministic and re-renders the same way every time (random seeds are fixed per
+frame). Run "python showreel.py" to rebuild it.
+
+
+1. CREATIVE DIRECTION
+---------------------
+Palette:  near-black navy (#0A0A12) base, with hot pink #FF2E88, cyan #00E5FF,
+          yellow #FFD600, violet #7C4DFF and off-white. The base is dark so the
+          neon colours glow. The palette is limited so the whole reel reads as one brand.
+Type:     Segoe UI Bold, a clean geometric sans that handles extreme size changes well.
+Structure: six scenes of roughly 2-3 s each, arranged as a rising-energy arc:
+          ignition -> rhythm -> message -> depth -> climax -> brand resolve.
+          The cuts scene is the peak. The logo is the exhale.
+
+
+2. SCENE BY SCENE
+-----------------
+00.0-02.4  "IGNITION": intro
+  - A single white dot pops in with ease-out-back (overshoot). It squashes away
+    with an ease-in-expo anticipation beat.
+  - Three staggered shockwave rings (pink/cyan/yellow) expand with ease-out-expo.
+    Their stroke width and opacity fall off over the ring's lifetime.
+  - 220-particle burst. Each particle has its own speed, size and drag factor,
+    plus fake gravity (+200*q^2 on y). Each one draws a line streak from its
+    previous position, a cheap stand-in for directional motion blur.
+  - "MOTION" letters drop one at a time (70 ms stagger) with a heavy ease-out-back
+    bounce. While they move, the letters flicker between palette colours. Offset
+    pink/cyan copies sit behind them as a chromatic 3D extrude.
+  - Exit: the letters get thrown upward with ease-in-expo (anticipation -> exit).
+  - Camera: an impact shake at the burst (decays over 0.35 s) plus a slow
+    push-in zoom.
+
+02.4-05.2  "SHAPE & RHYTHM": procedural grid
+  - 16x9 grid of 144 shapes. They enter in a radial stagger: delay is
+    proportional to distance from the centre, so the grid "blooms" outward.
+  - Each cell runs a travelling sine wave (scale + colour blend). That gives the
+    ripple, and every cell's colour is interpolated between two palette pairs.
+  - Shape morphing: cells cycle triangle -> square -> hexagon -> circle (polygon
+    vertex count steps 3/4/6/40) with a phase offset by distance, so the morph
+    sweeps across the grid in waves.
+  - Mixed fill and outline cells add texture and hierarchy.
+  - Title uses a TRACK MATTE: the text is rendered to a luminance layer and
+    multiplied by an expanding rectangle mask, so the word wipes on from the
+    centre out (the same idea as an AE track matte).
+  - Exit: the grid collapses in a right-to-left column stagger.
+
+05.2-08.4  KINETIC TYPOGRAPHY: "DESIGN / ANIMATE / TELL STORIES"
+  - Three 1.05 s beats. Each beat starts with a full-screen skewed colour panel
+    wiping in (ease-out-expo) and ends with it wiping out the other side
+    (ease-in-expo). The fast-in / fast-out pacing is what makes it snappy.
+  - Per-letter staggered rise with ease-out-back, then a per-letter staggered
+    exit upward. Letter positions come from real glyph advance widths, so
+    tracking stays correct while the letters animate.
+  - Swiss / HUD details: a "01 / 03" counter, a live frame counter and a
+    progress bar that runs across all three beats. These small elements give
+    the big type something to play against.
+  - Subtle sine-based "breathing" camera zoom.
+
+08.4-11.2  "SYSTEMS · PHYSICS · DEPTH": 3D orbital system
+  - Three rings of 60 particles each, built in real 3D space. Each ring has its
+    own X-axis tilt and Y-axis spin (rotation matrices written out by hand).
+    The points are projected with a perspective divide (fov / (fov + z)).
+  - Particles are depth-sorted (painter's algorithm). Size and brightness
+    scale with depth, which gives atmospheric perspective: far points fade
+    into the background colour.
+  - Three sine-wave ribbons, each with an amplitude envelope (a product of two
+    sines) so they writhe instead of oscillating evenly.
+  - A white core pops in with ease-out-elastic, surrounded by fading
+    concentric halo rings.
+  - Exit: an ease-in-expo camera punch-in that hands off energy into the
+    next scene.
+
+11.2-13.2  CLIMAX: rapid-fire rhythmic cuts
+  - A hard cut every 4 frames (7.5 cuts per second). Colours rotate through
+    the palette in complementary pairs.
+  - Three alternating graphic modes: radial speed lines (manga style),
+    scrolling diagonal hazard stripes, and spinning concentric squares.
+  - Single-word strobe type: BOLD / FAST / LOUD / SHARP / CLEAN / PUNCH /
+    FLOW / IMPACT. Each word scales up a little over its 4-frame life, with
+    a hard drop shadow.
+  - Continuous camera shake keeps the energy up.
+
+13.2-15.0  BRAND RESOLVE: logo
+  - IRIS transition: a dark circle grows out of the yellow and swallows the
+    frame (ease-in-out-cubic). It's a change of pace from the cut-heavy section.
+  - Logo build: a hexagon draws itself on segment by segment (stroke-reveal /
+    "trim paths" effect, with partial segments interpolated). Then the inner
+    triangle springs in with ease-out-elastic while rotating into place.
+  - "MOTION DESIGN" letters rise and fade in on a 25 ms stagger with
+    ease-out-expo.
+  - The yellow underline grows out from the centre, then "SHOWREEL 2026"
+    fades up.
+  - The logo holds for a beat, then fades to black.
+
+
+3. GLOBAL COMPOSITING PIPELINE (applied to every frame)
+-------------------------------------------------------
+  1. Animated background: a drifting radial gradient whose centre moves along a
+     Lissajous path. The scene supplies the tint, so the backdrop colour
+     shifts with each scene.
+  2. Scene layer drawn on a transparent RGBA canvas, then alpha-composited.
+  3. Virtual camera: zoom about the centre (resize + crop) and positional
+     shake (offset).
+  4. Bloom / glow: the frame is downsampled 4x, Gaussian-blurred, thresholded
+     (only values above 90 contribute) and added back. Neon colours bleed
+     light this way.
+  5. Chromatic aberration: the red and blue channels are shifted horizontally
+     in opposite directions. The shift is always slightly on (2 px) and spikes
+     to 16 px for 0.2 s after each scene cut, which reads as a glitch hit on
+     the transition.
+  6. Flash frames: a 2-frame white flash on every scene boundary to punctuate it.
+  7. Vignette: radial darkening that pulls the eye to the centre.
+  8. Film grain: 6 pre-baked Gaussian noise plates cycled per frame. This
+     gives an organic texture and also reduces banding in the gradients
+     after H.264 compression.
+  9. Fade in from black (0.15 s) and fade out (0.25 s).
+
+
+4. MOTION PRINCIPLES SHOWCASED
+------------------------------
+  - Easing library written from scratch: cubic in/out, expo in/out,
+    back (overshoot), elastic. Nothing moves linearly.
+  - Anticipation & follow-through: the dot squash before the burst, letters
+    flung out with ease-in after settling with ease-out-back.
+  - Overlapping action / offset: stagger on letters, radial stagger on the
+    grid, and staggered shockwave rings.
+  - Arcs & physics: gravity on particles, drag variation, orbital motion.
+  - Rhythm & pacing: a deliberate energy curve, slow-fast-slow, ending in a
+    held logo.
+  - Continuity: each exit leads into the next entry (camera punch-ins,
+    flash frames, an iris) so the reel feels like one piece.
+  - Hierarchy: big hero type paired with small HUD/meta details.
+  - Masks / track mattes, stroke reveals (trim paths), shape morphing,
+    3D projection and depth sorting.
+
+
+5. HOW TO REBUILD / TWEAK
+-------------------------
+  pip install numpy pillow imageio imageio-ffmpeg
+  python showreel.py showreel.mp4
+
+  - Timing of each scene: the SCENES table near the bottom of showreel.py.
+  - Colours: the palette constants at the top.
+  - Resolution/fps: W, H, FPS.
