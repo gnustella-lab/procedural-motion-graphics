@@ -1,6 +1,6 @@
-# Animation Mathematics & Easing Curves
+# Animation Mathematics, Physics & Easing Curves
 
-Procedural motion design relies on deterministic mathematical functions mapping time $t \in \mathbb{R}$ to visual properties (position, scale, rotation, color, opacity). Linear motion feels robotic and unnatural; organic, broadcast-grade motion requires deliberate acceleration, anticipation, overshoot, and harmonic oscillation.
+Procedural motion design relies on deterministic mathematical functions mapping time $t \in \mathbb{R}$ to visual properties (position, scale, rotation, color, opacity). Linear motion feels robotic and unnatural; broadcast-grade motion demands deliberate acceleration, anticipation, overshoot, harmonic oscillation, and physical spring dynamics.
 
 ---
 
@@ -21,98 +21,130 @@ def prog(t: float, start: float, end: float) -> float:
 
 ---
 
-## 2. Easing Curves Reference
+## 2. Spring Physics vs. Canned Easings
 
-### 2.1 Cubic Easing (Fluid Motion)
-Cubic easing mimics natural inertia with a constant third derivative.
+While classical Bézier curves (cubic, expo) work well for UI glides, **physically grounded damped spring physics** produces vastly superior, tactile motion for typography and vector objects.
 
-- **Ease-Out Cubic** (Deceleration):
-  $$\text{easeOutCubic}(x) = 1 - (1 - x)^3$$
-  Used when elements enter the screen and smoothly glide to a halt.
+### 2.1 Damped Harmonic Spring Physics (Recommended)
+Models a physical mass on a spring subject to viscous damping:
 
-- **Ease-In-Out Cubic** (Smooth S-Curve):
-  $$\text{easeInOutCubic}(x) = \begin{cases} 4x^3 & x < 0.5 \\ 1 - \frac{(-2x + 2)^3}{2} & x \ge 0.5 \end{cases}$$
-  Used for camera zooms, iris transitions, and looping geometric morphs.
+$$f(x) = 1.0 - e^{-k x} \cos(\omega x) \quad (x \ge 0)$$
 
-### 2.2 Exponential Easing (High-Impact Snappiness)
-Exponential curves create extreme velocity contrasts—nearly instantaneous transitions that feel crisp and punchy.
+- $k$: Damping factor (e.g., $k = 7$). Controls how quickly oscillations settle.
+- $\omega$: Angular frequency (e.g., $\omega = 14$). Controls the bounce rate.
 
-- **Ease-Out Expo** (Instant entrance, gradual settle):
-  $$\text{easeOutExpo}(x) = \begin{cases} 1 & x = 1 \\ 1 - 2^{-10x} & x < 1 \end{cases}$$
-  Used for snappy color wipe panels, shockwave ring expansion, and title fades.
+```python
+def spring(x: float, k: float = 7.0, w: float = 14.0) -> float:
+    """Natural, organic overshoot and settling vibration."""
+    if x <= 0.0:
+        return 0.0
+    return 1.0 - math.exp(-k * x) * math.cos(w * x)
+```
 
-- **Ease-In Expo** (Anticipation to explosive exit):
-  $$\text{easeInExpo}(x) = \begin{cases} 0 & x = 0 \\ 2^{10x - 10} & x > 0 \end{cases}$$
-  Used for exit flings, launching elements offscreen, and camera punch-ins.
+**Why Springs Beat Static Easings:**
+1. **Dynamic Realism**: Unlike static `easeOutBack`, a spring continues settling with microscopic natural reverberation.
+2. **Organic Weight**: Adjusting $k$ and $\omega$ simulates heavy massive blocks ($k=10, \omega=10$) versus light bouncy pills ($k=5, \omega=18$).
 
-### 2.3 Back Easing (Anticipation & Overshoot)
-Simulates momentum overshooting the target and snapping back into position.
+### 2.2 Hermite Smoothstep (Fills & Reveals)
+The standard cubic polynomial S-curve with zero first derivatives at $x=0$ and $x=1$:
 
-$$\text{easeOutBack}(x, s) = 1 + (s + 1)(x - 1)^3 + s(x - 1)^2$$
-*(Default overshoot constant $s \approx 1.70158$, or $s = 2.2$ for aggressive stylized bounces).*
+$$\text{smoothstep}(x) = 3x^2 - 2x^3 \quad (x \in [0, 1])$$
 
-**Usage**: Kinetic typography drops, pop-in icons, dot pops, and UI cards.
-
-### 2.4 Elastic Easing (Damped Harmonic Oscillator)
-Models a physical spring attached to a mass settling under viscous damping:
-
-$$\text{easeOutElastic}(x) = 2^{-10x} \sin\left(\left(10x - 0.75\right) \cdot \frac{2\pi}{3}\right) + 1$$
-
-**Usage**: High-energy logo reveals, inner core explosions, and secondary accents.
+```python
+def smoothstep(x: float) -> float:
+    x = clamp(x, 0.0, 1.0)
+    return x * x * (3.0 - 2.0 * x)
+```
+Ideal for linear wipes, percentage progress bar fills, and iris transitions.
 
 ---
 
-## 3. Stagger & Delay Propagation
+## 3. Classic Easing Curves Reference
+
+### 3.1 Cubic Easing
+- **Ease-Out Cubic** (Deceleration):
+  $$\text{easeOutCubic}(x) = 1 - (1 - x)^3$$
+- **Ease-In-Out Cubic** (Smooth S-Curve):
+  $$\text{easeInOutCubic}(x) = \begin{cases} 4x^3 & x < 0.5 \\ 1 - \frac{(-2x + 2)^3}{2} & x \ge 0.5 \end{cases}$$
+
+### 3.2 Exponential Easing (High-Impact Snappiness)
+- **Ease-Out Expo** (Instant entrance, gradual settle):
+  $$\text{easeOutExpo}(x) = \begin{cases} 1 & x = 1 \\ 1 - 2^{-10x} & x < 1 \end{cases}$$
+- **Ease-In Expo** (Anticipation to explosive exit):
+  $$\text{easeInExpo}(x) = \begin{cases} 0 & x = 0 \\ 2^{10x - 10} & x > 0 \end{cases}$$
+
+### 3.3 Back Easing (Anticipation & Overshoot)
+$$\text{easeOutBack}(x, s) = 1 + (s + 1)(x - 1)^3 + s(x - 1)^2$$
+*(Default $s \approx 1.70158$, or $s = 2.2$ for aggressive stylized bounces).*
+
+---
+
+## 4. Disney Animation Principles in Code
+
+### 4.1 Squash & Stretch
+When an animated shape bounces against a surface, volume preservation requires horizontal expansion when compressed vertically:
+
+$$s_x = 1.0 + \kappa \cdot (1 - \text{bounce})^p$$
+$$s_y = 2.0 - s_x$$
+
+- $\text{bounce} = |\sin(\pi \cdot \phi)| \in [0, 1]$: Current height off the ground.
+- $\kappa$: Squash intensity (typically $0.3 - 0.4$).
+- $p$: Exponent (e.g., $p = 6$). Confines the deformation strictly to the moment of surface contact.
+
+```python
+def squash_and_stretch(bounce: float, intensity: float = 0.35, power: float = 6.0, is_landing: bool = True) -> Tuple[float, float]:
+    sx = 1.0 + intensity * ((1.0 - bounce) ** power) * (1.0 if is_landing else 0.0)
+    sy = 2.0 - sx
+    return sx, sy
+```
+
+### 4.2 Dynamic Contact Shadows
+Ground shadows give floating/bouncing elements tactile anchoring in the 2D plane:
+1. **Scale**: Contracts as the object rises, expands as it impacts the floor.
+2. **Opacity / Tint**: Fades as the object gains altitude.
+
+$$\text{shadowScale} = 1.0 - (1.0 - s_{\min}) \cdot \text{bounce}$$
+
+```python
+# Shadow expands and darkens on ground contact
+p.ellipse([cx - r * shadow_scale, floor_y - 10, cx + r * shadow_scale, floor_y + 10], fill=shadow_col)
+```
+
+---
+
+## 5. Stagger & Delay Propagation
 
 Motion graphics gain depth when elements react in sequence rather than simultaneously.
 
-### 3.1 Linear Sequence Stagger
-For words and lists, delay each item $i$ by a constant $\Delta$:
+### 5.1 Linear Sequence Stagger
+For typography and ranked lists, delay each item $i$ by a constant $\Delta$:
 
 $$t_{\text{start}, i} = t_0 + i \cdot \Delta$$
 
 ```python
-for i, char in enumerate(word):
-    q = prog(t, t_start + i * 0.07, t_settle + i * 0.07)
-    y = lerp(-250, cy, ease_out_back(q, 2.2))
+for i, item in enumerate(items):
+    delay = i * 0.08
+    q = spring(prog(t, t_start + delay, t_end + delay))
+    x = lerp(1400, 70, q)
 ```
 
-### 3.2 Radial Distance Bloom Stagger
-In a 2D matrix or particle cloud, elements trigger based on their Euclidean distance $d$ from an epicenter $(c_x, c_y)$:
+### 5.2 Radial Distance Bloom Stagger
+Elements trigger based on their Euclidean distance $d$ from an epicenter $(c_x, c_y)$:
 
 $$d_{ij} = \sqrt{(i - c_x)^2 + (j - c_y)^2}$$
 $$\text{delay}_{ij} = d_{ij} \cdot \kappa$$
 
+---
+
+## 6. Beat Synchronization & Pulse Clocks
+
+Tie motion frequencies to a musical tempo grid (e.g. 120 BPM = 0.5s per beat):
+
+$$\text{beat}(t) = \exp\left(-\lambda \cdot (t \pmod{T_{\text{beat}}})\right)$$
+
 ```python
-delay = math.hypot(col - center_col, row - center_row) * 0.06
-scale = ease_out_back(prog(local_t, delay, delay + 0.5))
+def beat(t: float, bpm: float = 120.0) -> float:
+    beat_dur = 60.0 / bpm
+    return math.exp(-6.0 * (t % beat_dur))
 ```
-
----
-
-## 4. Harmonic Wave Motion
-
-Combining sine waves with spatial offsets creates fluid organic ripple effects:
-
-$$\text{wave}(t, d) = 0.5 + 0.5 \cdot \sin(\omega t - k \cdot d)$$
-
-- $\omega$: Temporal angular frequency (speed of wave propagation)
-- $k$: Spatial wave number (frequency of rings per unit distance)
-
----
-
-## 5. Particle Physics & Velocity Trails
-
-For explosions without full rigid-body physics, procedural ballistic equations suffice:
-
-$$x(t) = c_x + \cos(\theta) \cdot v \cdot e(q) \cdot d_r$$
-$$y(t) = c_y + \sin(\theta) \cdot v \cdot e(q) \cdot d_r + g \cdot q^2$$
-
-- $\theta \sim \mathcal{U}(0, 2\pi)$: Radial launch angle
-- $v$: Initial velocity
-- $e(q) = \text{easeOutExpo}(q)$: Deceleration curve
-- $d_r$: Individual drag coefficient
-- $g \cdot q^2$: Quadratic gravity term
-
-**Velocity Trails (Cheap Motion Blur)**:
-Instead of expensive multi-frame temporal supersampling, draw a line from the particle's trailing position ($0.92 \cdot \text{dist}$) to its current position $(x, y)$ with decaying opacity.
+Multiply this pulse against scale, shadow radii, and accent amplitudes to create rhythmic visual resonance.

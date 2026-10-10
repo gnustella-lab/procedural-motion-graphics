@@ -1,7 +1,8 @@
 """Motion Graphics Engine in Pure Python (NumPy + Pillow).
 
 A modular procedural motion design toolkit providing mathematical easing curves,
-3D perspective projection, geometric morphing, track mattes, and post-processing
+spring physics, Super-Sampled Anti-Aliasing (SSAA), 2D polar geometric morphing,
+3D perspective projection, track mattes, transitions (iris wipes), and post-processing
 compositing passes (bloom, chromatic aberration, film grain, vignette, camera shake).
 """
 
@@ -12,7 +13,7 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageChops
 
 # ==============================================================================
-# 1. MATHEMATICAL EASING & INTERPOLATION
+# 1. MATHEMATICAL EASING, SPRINGS & INTERPOLATION
 # ==============================================================================
 
 def clamp(x: float, a: float = 0.0, b: float = 1.0) -> float:
@@ -52,6 +53,28 @@ def ease_out_elastic(x: float) -> float:
         return x
     return 2.0 ** (-10.0 * x) * math.sin((x * 10.0 - 0.75) * (2.0 * math.pi / 3.0)) + 1.0
 
+def spring(x: float, k: float = 7.0, w: float = 14.0) -> float:
+    """Damped harmonic spring oscillation: 1 - e^(-kx) * cos(wx).
+    
+    Provides natural, physically grounded overshoot and settling vibrations.
+    Parameters:
+        x: Normalized progress (x >= 0).
+        k: Damping coefficient (higher = quicker settling, e.g. 7).
+        w: Angular frequency (higher = more oscillations, e.g. 14).
+    """
+    if x <= 0.0:
+        return 0.0
+    return 1.0 - math.exp(-k * x) * math.cos(w * x)
+
+def smoothstep(x: float) -> float:
+    """Hermite smoothstep interpolation (3x^2 - 2x^3) clamped in [0, 1]."""
+    x = clamp(x, 0.0, 1.0)
+    return x * x * (3.0 - 2.0 * x)
+
+def smooth(x: float) -> float:
+    """Alias for smoothstep."""
+    return smoothstep(x)
+
 def lerp(a: float, b: float, t: float) -> float:
     """Linear interpolation between scalar values a and b."""
     return a + (b - a) * t
@@ -60,10 +83,32 @@ def lerpc(c1: Tuple[int, ...], c2: Tuple[int, ...], t: float) -> Tuple[int, ...]
     """Linear interpolation between RGB or RGBA color tuples."""
     return tuple(int(lerp(a, b, t)) for a, b in zip(c1, c2))
 
+def squash_and_stretch(bounce: float, intensity: float = 0.35, power: float = 6.0, is_landing: bool = True) -> Tuple[float, float]:
+    """Calculate (sx, sy) scale factors for classic squash and stretch on ground contact.
+    
+    Args:
+        bounce: Normalized bounce height (0.0 at floor impact, 1.0 at peak arc).
+        intensity: Maximum squash amount (e.g. 0.35 for 35% wider).
+        power: Exponent controlling sharpness of ground impact zone.
+        is_landing: True if phase corresponds to descending/landing half of cycle.
+    """
+    sx = 1.0 + intensity * ((1.0 - bounce) ** power) * (1.0 if is_landing else 0.0)
+    sy = 2.0 - sx
+    return sx, sy
+
+def contact_shadow_scale(bounce: float, min_scale: float = 0.55) -> float:
+    """Calculate contact shadow scale factor based on distance from ground."""
+    return 1.0 - (1.0 - min_scale) * bounce
+
 
 # ==============================================================================
-# 2. TYPOGRAPHY & FONT HELPERS
+# 2. TYPOGRAPHY & COLOR HELPERS
 # ==============================================================================
+
+def hexc(hex_str: str) -> Tuple[int, int, int]:
+    """Parse hex color '#RRGGBB' to an (R, G, B) tuple."""
+    hex_str = hex_str.lstrip("#")
+    return tuple(int(hex_str[i:i+2], 16) for i in (0, 2, 4))
 
 def get_font(size: int, bold: bool = True) -> ImageFont.ImageFont:
     """Load standard system geometric font with automatic cross-platform fallbacks."""
@@ -88,7 +133,7 @@ def text_center(draw: ImageDraw.ImageDraw, xy: Tuple[float, float], text: str,
 
 
 # ==============================================================================
-# 3. PROCEDURAL 2D GEOMETRY
+# 3. PROCEDURAL 2D GEOMETRY & POLAR SHAPE MORPHING
 # ==============================================================================
 
 def rot_poly(cx: float, cy: float, r: float, n: int, ang: float) -> List[Tuple[float, float]]:
@@ -99,22 +144,126 @@ def rot_poly(cx: float, cy: float, r: float, n: int, ang: float) -> List[Tuple[f
         for i in range(n)
     ]
 
+def polar_radius(shape_type: int, theta: float) -> float:
+    """Calculate normalized polar radius r(theta) for 2D geometric shapes:
+    0 = Circle
+    1 = Rounded Square / Box
+    2 = Equilateral Triangle
+    3 = 5-Point Star
+    """
+    if shape_type == 0:  # Circle
+        return 1.0
+    elif shape_type == 1:  # Square
+        cos_t = max(1e-5, abs(math.cos(theta)))
+        sin_t = max(1e-5, abs(math.sin(theta)))
+        return 0.86 / max(cos_t, sin_t)
+    elif shape_type == 2:  # Triangle
+        m = (theta + math.pi / 2.0) % (2.0 * math.pi / 3.0)
+        return 0.5 * 1.15 / max(0.1, math.cos(m - math.pi / 3.0))
+    elif shape_type == 3:  # 5-Point Star
+        return 0.62 + 0.38 * (math.cos(5.0 * theta) ** 2) + 0.05
+    return 1.0
+
+def morph_polar_shapes(shape_a: int, shape_b: int, progress: float, num_samples: int = 72) -> List[Tuple[float, float]]:
+    """Generate interpolated (theta, radius) points between shape_a and shape_b across num_samples."""
+    progress = clamp(progress, 0.0, 1.0)
+    points = []
+    for i in range(num_samples):
+        th = i / num_samples * 2.0 * math.pi
+        r_a = min(polar_radius(shape_a, th), 1.5)
+        r_b = min(polar_radius(shape_b, th), 1.5)
+        r = lerp(r_a, r_b, progress)
+        points.append((th, r))
+    return points
+
+def polar_to_cartesian(cx: float, cy: float, points: List[Tuple[float, float]],
+                       scale: float = 1.0, scale_x: float = 1.0, scale_y: float = 1.0) -> List[Tuple[float, float]]:
+    """Convert a list of (theta, radius) points into Cartesian (x, y) coordinates with scaling."""
+    return [
+        (cx + math.cos(th) * r * scale * scale_x,
+         cy + math.sin(th) * r * scale * scale_y)
+        for th, r in points
+    ]
+
 
 # ==============================================================================
-# 4. 3D PERSPECTIVE PROJECTION & ROTATION
+# 4. SUPER-SAMPLED ANTI-ALIASING (SSAA) DRAWING CANVAS (PEN)
+# ==============================================================================
+
+class Pen:
+    """Super-Sampled Anti-Aliasing (SSAA) drawing canvas.
+    
+    Draws onto a virtual canvas multiplied by scale factor K (default 1.5x) and
+    downsamples with Lanczos filtering upon export. This achieves razor-sharp vector
+    rendering without jagged edges or GPU dependencies.
+    """
+    def __init__(self, bg: Union[Tuple[int, int, int], str], width: int = 1280, height: int = 720, k: float = 1.5):
+        self.width = width
+        self.height = height
+        self.k = k
+        if isinstance(bg, str):
+            bg = hexc(bg)
+        self.im = Image.new("RGB", (int(width * k), int(height * k)), bg)
+        self.d = ImageDraw.Draw(self.im)
+        self._font_cache = {}
+
+    def font(self, size: float, bold: bool = True) -> ImageFont.ImageFont:
+        scaled_size = max(1, int(size * self.k))
+        key = (scaled_size, bold)
+        if key not in self._font_cache:
+            self._font_cache[key] = get_font(scaled_size, bold=bold)
+        return self._font_cache[key]
+
+    def rect(self, x0: float, y0: float, x1: float, y1: float, fill, r: float = 0.0) -> None:
+        """Draw rectangle or rounded rectangle in base coordinates."""
+        b = [x0 * self.k, y0 * self.k, x1 * self.k, y1 * self.k]
+        if r > 0.0:
+            self.d.rounded_rectangle(b, r * self.k, fill=fill)
+        else:
+            self.d.rectangle(b, fill=fill)
+
+    def ell(self, cx: float, cy: float, r: float, fill=None, outline=None, width: float = 1.0) -> None:
+        """Draw circle/ellipse in base coordinates."""
+        b = [(cx - r) * self.k, (cy - r) * self.k, (cx + r) * self.k, (cy + r) * self.k]
+        self.d.ellipse(b, fill=fill, outline=outline, width=max(1, int(width * self.k)))
+
+    def poly(self, pts: List[Tuple[float, float]], fill) -> None:
+        """Draw polygon with list of (x, y) vertices in base coordinates."""
+        scaled_pts = [(x * self.k, y * self.k) for x, y in pts]
+        self.d.polygon(scaled_pts, fill=fill)
+
+    def line(self, pts: List[Tuple[float, float]], fill, width: float = 1.0) -> None:
+        """Draw polyline in base coordinates."""
+        scaled_pts = [(x * self.k, y * self.k) for x, y in pts]
+        self.d.line(scaled_pts, fill=fill, width=max(1, int(width * self.k)))
+
+    def txt(self, x: float, y: float, s: str, size: float, fill, anchor: str = "mm", bold: bool = True) -> None:
+        """Draw text string in base coordinates."""
+        self.d.text((x * self.k, y * self.k), s, font=self.font(size, bold=bold), fill=fill, anchor=anchor)
+
+    def tw(self, s: str, size: float, bold: bool = True) -> float:
+        """Measure text advance width in unscaled base coordinates."""
+        return self.d.textlength(s, font=self.font(size, bold=bold)) / self.k
+
+    def render(self) -> Image.Image:
+        """Downsample the super-sampled buffer back to native target resolution via Lanczos."""
+        if self.k == 1.0:
+            return self.im
+        return self.im.resize((self.width, self.height), Image.LANCZOS)
+
+
+# ==============================================================================
+# 5. 3D PERSPECTIVE PROJECTION & ROTATION
 # ==============================================================================
 
 def rotate_3d(x: float, y: float, z: float, rx: float = 0.0, ry: float = 0.0, rz: float = 0.0) -> Tuple[float, float, float]:
     """Rotate 3D coordinates around X, Y, and Z axes using Euler rotation matrices."""
-    # X rotation
     if rx != 0.0:
         cos_x, sin_x = math.cos(rx), math.sin(rx)
         y, z = y * cos_x - z * sin_x, y * sin_x + z * cos_x
-    # Y rotation
     if ry != 0.0:
         cos_y, sin_y = math.cos(ry), math.sin(ry)
         x, z = x * cos_y + z * sin_y, -x * sin_y + z * cos_y
-    # Z rotation
     if rz != 0.0:
         cos_z, sin_z = math.cos(rz), math.sin(rz)
         x, y = x * cos_z - y * sin_z, x * sin_z + y * cos_z
@@ -131,8 +280,28 @@ def project_3d(x: float, y: float, z: float, cx: float, cy: float,
 
 
 # ==============================================================================
-# 5. POST-PROCESSING COMPOSITING PASSES
+# 6. SCENE TRANSITIONS & POST-PROCESSING
 # ==============================================================================
+
+def iris_wipe(img_curr: Image.Image, img_prev: Image.Image, progress: float, max_radius: float = None) -> Image.Image:
+    """Seamless circular iris reveal transition from img_prev to img_curr.
+    
+    Allows outgoing and incoming scenes to animate concurrently.
+    """
+    if progress <= 0.0:
+        return img_prev
+    if progress >= 1.0:
+        return img_curr
+    w, h = img_curr.size
+    if max_radius is None:
+        max_radius = math.hypot(w / 2.0, h / 2.0)
+    r = smoothstep(progress) * max_radius
+    mask = Image.new("L", (w, h), 0)
+    ImageDraw.Draw(mask).ellipse(
+        [w / 2.0 - r, h / 2.0 - r, w / 2.0 + r, h / 2.0 + r],
+        fill=255
+    )
+    return Image.composite(img_curr, img_prev, mask)
 
 def apply_glow_bloom(img: np.ndarray, threshold: float = 90.0,
                      blur_radius: int = 8, intensity: float = 0.55) -> np.ndarray:

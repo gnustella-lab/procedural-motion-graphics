@@ -1,113 +1,113 @@
-# Multi-Pass Compositing & Post-Processing Pipeline
+# Rendering Architecture, Compositing & Bitrate Pipeline
 
-Raw vector drawings look sterile and flat. High-end motion graphics achieve their cinematic look through a multi-pass compositing pipeline applied to every frame.
+Broadcast-grade motion graphics in pure Python require careful attention to image quality, transition mechanics, and video compression efficiency.
 
 ```mermaid
 flowchart TD
-    A[Lissajous Gradient BG] --> C[Alpha Over Blend]
-    B[RGBA Foreground Scene Layer] --> C
-    C --> D[Virtual Camera: Zoom & Shake]
-    D --> E[Bloom / Glow Pass]
-    E --> F[Chromatic Aberration Channel Shift]
-    F --> G[Cut Flash Overlay]
-    G --> H[Vignette Darkening]
-    H --> I[Cyclic Film Grain Plate]
-    I --> J[Master Fade In/Out]
-    J --> K[H.264 Encoder]
+    A[SSAA 1.5x Virtual Canvas: Pen] --> B[Lanczos Downsampling]
+    B --> C{Render Aesthetic}
+    C -->|Flat / Editorial Wrapped| D[Zero Noise / Pristine Vectors]
+    C -->|Dark Cyber Glow| E[Bloom + CA + Grain + Vignette]
+    D --> F[Concurrent Iris Wipe Compositor]
+    E --> F
+    F --> G[H.264 libx264 Temporal Encoder]
 ```
 
 ---
 
-## 1. Lissajous Gradient Background
+## 1. Super-Sampled Anti-Aliasing (SSAA)
 
-Static solid backgrounds feel dead. A drifting dual-radial gradient keeps the canvas alive without stealing focus:
+### 1.1 The Aliasing Problem in CPU Drawing
+Pillow's rasterization engine relies on integer scanline algorithms. When drawing diagonal polygon edges, rotated text, or high-radius arcs at native resolution ($1280 \times 720$), stair-stepping / jagged pixel artifacts become immediately visible.
+
+### 1.2 The SSAA Solution: 1.5x Lanczos Downsampling
+To achieve razor-sharp vector rendering without GPU shader pipelines:
+1. **Virtual Coordinate Space**: Design layouts in standard $1280 \times 720$ coordinates.
+2. **Super-Sampled Render Buffer**: Scale coordinates, radii, and typography by $K = 1.5\times$ (rendering internally at $1920 \times 1080$).
+3. **Lanczos Downsampling**: At the end of the frame lifecycle, downsample back to $1280 \times 720$ using `Image.LANCZOS` (3-lobed Sinc windowed filter).
 
 ```python
-# Centre drifts along orthogonal sinusoidal frequencies
-ax = cx + math.cos(t * 0.7) * 500
-ay = cy + math.sin(t * 0.9) * 250
-dist = np.sqrt((xx - ax)**2 + (yy - ay)**2) / 1400
-g = np.exp(-dist * 3.0)[..., None]
-bg = np.array(BG, np.float32) + g * np.array(tint, np.float32) * 0.22
+class Pen:
+    def __init__(self, bg, width=1280, height=720, k=1.5):
+        self.k = k
+        self.im = Image.new("RGB", (int(width * k), int(height * k)), bg)
+        self.d = ImageDraw.Draw(self.im)
+        
+    def rect(self, x0, y0, x1, y1, fill, r=0):
+        b = [x0 * self.k, y0 * self.k, x1 * self.k, y1 * self.k]
+        if r: self.d.rounded_rectangle(b, r * self.k, fill=fill)
+        else: self.d.rectangle(b, fill=fill)
+        
+    def render(self):
+        return self.im.resize((1280, 720), Image.LANCZOS)
 ```
 
-The scene dynamically supplies the `tint` vector, shifting atmospheric mood across scene boundaries.
+**Benefits**:
+- Zero jagged edges on angled vectors or smooth text.
+- 100% deterministic CPU rendering without external OpenGL/Vulkan runtimes.
 
 ---
 
-## 2. Downsampled Bloom / Glow Pass
+## 2. Seamless Scene Transitions
 
-Simulates camera lens diffusion around emissive neon surfaces.
-
-### Algorithm:
-1. Downscale the composited frame by 4x using bilinear filtering (for extreme speed).
-2. Apply a Gaussian blur with radius $\sigma = 8$.
-3. Upscale back to native resolution ($1920 \times 1080$).
-4. Threshold bright areas: subtract luminance floor ($\tau = 90$), clamp negative values to zero.
-5. Add back to the original image multiplied by glow intensity ($\alpha = 0.55$).
+### 2.1 Concurrent Iris Wipes
+Rather than abrupt hard cuts, an iris wipe reveals the incoming scene from center outward while **the outgoing scene continues animating in the background**:
 
 ```python
-small = Image.fromarray(img.clip(0, 255).astype(np.uint8)).resize((W // 4, H // 4), Image.BILINEAR)
-glow = np.asarray(small.filter(ImageFilter.GaussianBlur(8)).resize((W, H), Image.BILINEAR), np.float32)
-img = img + np.maximum(glow - 90, 0) * 0.55
+def iris_wipe(img_curr: Image.Image, img_prev: Image.Image, progress: float) -> Image.Image:
+    w, h = img_curr.size
+    max_radius = math.hypot(w / 2.0, h / 2.0)
+    r = smoothstep(progress) * max_radius
+    
+    mask = Image.new("L", (w, h), 0)
+    ImageDraw.Draw(mask).ellipse(
+        [w / 2.0 - r, h / 2.0 - r, w / 2.0 + r, h / 2.0 + r],
+        fill=255
+    )
+    return Image.composite(img_curr, img_prev, mask)
 ```
 
----
-
-## 3. Dynamic Chromatic Aberration
-
-Simulates lens dispersion by displacing color channels horizontally:
-- Shift Red channel right by $+\delta$ pixels.
-- Shift Blue channel left by $-\delta$ pixels.
-- Green channel remains centered.
+### 2.2 Sliding Reveal Masks (Stencils)
+Create Swiss editorial reveals by drawing headline typography and placing a sliding background-colored rectangle that slides away to the right:
 
 ```python
-since_cut = t - scene_start_time
-# Spikes up to 16px on cut hits, settles to 2px baseline
-ca = 2 + int(14 * max(0.0, 1.0 - since_cut / 0.2))
-img[..., 0] = np.roll(img[..., 0], ca, axis=1)
-img[..., 2] = np.roll(img[..., 2], -ca, axis=1)
-```
-
----
-
-## 4. Anti-Banding Film Grain (Dithering)
-
-8-bit H.264 compression (`yuv420p`) suffers heavily from color banding (contouring) in smooth radial gradients.
-
-To eliminate banding and add organic cinematic texture:
-1. Precompute 6 Gaussian noise plates ($\mu = 0, \sigma = 7.0$).
-2. Cycle through the noise plates frame-by-frame (`grain[i % 6]`).
-3. Add noise directly to floating-point RGB buffer before 8-bit clipping.
-
-```python
-GRAIN = [np.random.normal(0, 7, (H, W, 1)).astype(np.float32) for _ in range(6)]
-img = img + GRAIN[frame_idx % len(GRAIN)]
+text_w = pen.tw(headline, size=100)
+pen.txt(x, y, headline, 100, WHITE, anchor="lm")
+# Reveal mask: background block slides off to the right
+wipe_k = smoothstep(prog(t, t_start, t_end))
+pen.rect(x + text_w * wipe_k - 2, y - 60, x + text_w + 30, y + 60, BG_COLOR)
 ```
 
 ---
 
-## 5. Vignette Falloff
+## 3. Video Compression & Bitrate Efficiency: Flat vs. Noisy
 
-Darkens outer corners to focus the viewer's eye on the center hero action:
+| Metric | Version 1 (Dark Glow + Grain) | Version 2 (Flat Wrapped SSAA) |
+| :--- | :--- | :--- |
+| **Video File Size (15s @ 720p)** | **48.8 MB** | **2.7 MB (18x smaller!)** |
+| **Visual Style** | Cyber neon, bloom, grain plates | Flat color-block, Swiss editorial |
+| **Temporal Redundancy** | Extremely low (noise destroys P/B frames) | Extremely high (solid macroblocks) |
+| **Visual Sharpness** | Diffuse, blurred by bloom/grain | Razor-sharp, vector crispness |
+| **Encoding Speed** | Slower (heavy float post-processing) | Faster (pure vector drawing + SSAA) |
 
-$$V(x, y) = \text{clip}\left(1.0 - 0.65 \cdot \left(\frac{r}{r_{\max}}\right)^2, 0.0, 1.0\right)$$
+### 3.1 Why Grain Destroys Compression
+H.264 video encoders rely on **Motion Estimation** and **Temporal Redundancy** (storing differences between adjacent frames in P-frames and B-frames).
+- **Procedural Film Grain**: Adding pseudo-random Gaussian noise plates ($\sigma = 7.0$) introduces uncorrelated high-frequency changes in every single pixel every single frame.
+- The encoder cannot find matching macroblocks from previous frames, forcing it to allocate massive bitrate to encode noise.
 
-```python
-yy, xx = np.mgrid[0:H, 0:W].astype(np.float32)
-rr = np.sqrt((xx - cx)**2 + (yy - cy)**2) / math.hypot(cx, cy)
-VIGNETTE = (1.0 - 0.65 * rr**2).clip(0, 1)[..., None]
-img = img * VIGNETTE
-```
+### 3.2 The Flat Vector Advantage
+When using flat color-block design:
+- Solid background areas compress to near-zero bytes across consecutive frames.
+- Motion vectors cleanly track moving edges.
+- Result: **Broadcast-grade visual impact at 1/18th the file size**, ideal for web delivery, social sharing, and instant loading.
 
 ---
 
-## 6. Flash Frames & Camera Shake
+## 4. Multi-Pass Glow Pipeline (When Dark Aesthetic is Needed)
 
-- **Cut Punctuations**: On hard scene boundaries, blend a 60% white frame for 2 frames ($t - t_{\text{cut}} < 2 / \text{FPS}$).
-- **Impact Jitter**: When high-mass elements strike (particle explosions, hard cuts), apply 2D pixel offset jitter decaying over 0.35s:
+When a dark cyber aesthetic is explicitly required, apply the multi-pass post stack:
 
-```python
-if shake > 0:
-    layer = ImageChops.offset(layer, int(random.uniform(-shake, shake)), int(random.uniform(-shake, shake)))
-```
+1. **Downsampled Bloom**: Downscale 4x $\to$ Gaussian blur ($\sigma=8$) $\to$ threshold subtract ($\tau=90$) $\to$ additive blend.
+2. **Chromatic Aberration**: Displace Red right and Blue left by $2-16\text{px}$ on cut beats.
+3. **Vignette**: Radial quadratic falloff $(1.0 - 0.65 \cdot r^2)$.
+4. **Camera Shake**: 2D coordinate displacement on percussive hits.
