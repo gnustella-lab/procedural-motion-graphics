@@ -2,8 +2,9 @@
 
 A modular procedural motion design toolkit providing mathematical easing curves,
 spring physics, Super-Sampled Anti-Aliasing (SSAA), 2D polar geometric morphing,
-3D perspective projection, track mattes, transitions (iris wipes), and post-processing
-compositing passes (bloom, chromatic aberration, film grain, vignette, camera shake).
+3D perspective projection, track mattes, transitions (iris wipes, vertical app pushes),
+app UI simulation tools (generative covers, synced lyrics, micro-interactions), and
+post-processing compositing passes (bloom, chromatic aberration, film grain, vignette).
 """
 
 import math
@@ -27,11 +28,13 @@ def prog(t: float, a: float, b: float) -> float:
     return clamp((t - a) / (b - a))
 
 def ease_out_cubic(x: float) -> float:
-    """Smooth deceleration cubic easing."""
+    """Smooth deceleration cubic easing (Penner)."""
+    x = clamp(x, 0.0, 1.0)
     return 1.0 - (1.0 - x) ** 3
 
 def ease_in_out_cubic(x: float) -> float:
-    """Smooth acceleration then deceleration."""
+    """Smooth acceleration then deceleration (Penner S-curve)."""
+    x = clamp(x, 0.0, 1.0)
     return 4.0 * x**3 if x < 0.5 else 1.0 - (-2.0 * x + 2.0)**3 / 2.0
 
 def ease_in_expo(x: float) -> float:
@@ -44,6 +47,7 @@ def ease_out_expo(x: float) -> float:
 
 def ease_out_back(x: float, s: float = 1.70158) -> float:
     """Deceleration overshoot curve (springs past target, settles back)."""
+    x = clamp(x, 0.0, 1.0)
     c3 = s + 1.0
     return 1.0 + c3 * (x - 1.0)**3 + s * (x - 1.0)**2
 
@@ -113,10 +117,10 @@ def hexc(hex_str: str) -> Tuple[int, int, int]:
 def get_font(size: int, bold: bool = True) -> ImageFont.ImageFont:
     """Load standard system geometric font with automatic cross-platform fallbacks."""
     font_candidates = (
-        ["C:/Windows/Fonts/segoeuib.ttf", "C:/Windows/Fonts/arialbd.ttf",
+        ["C:/Windows/Fonts/arialbd.ttf", "C:/Windows/Fonts/segoeuib.ttf",
          "/System/Library/Fonts/Helvetica.ttc", "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"]
         if bold else
-        ["C:/Windows/Fonts/segoeui.ttf", "C:/Windows/Fonts/arial.ttf",
+        ["C:/Windows/Fonts/arial.ttf", "C:/Windows/Fonts/segoeui.ttf",
          "/System/Library/Fonts/Helvetica.ttc", "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"]
     )
     for path in font_candidates:
@@ -237,7 +241,7 @@ class Pen:
         scaled_pts = [(x * self.k, y * self.k) for x, y in pts]
         self.d.line(scaled_pts, fill=fill, width=max(1, int(width * self.k)))
 
-    def txt(self, x: float, y: float, s: str, size: float, fill, anchor: str = "mm", bold: bool = True) -> None:
+    def txt(self, x: float, y: float, s: str, size: float, fill, anchor: str = "lm", bold: bool = True) -> None:
         """Draw text string in base coordinates."""
         self.d.text((x * self.k, y * self.k), s, font=self.font(size, bold=bold), fill=fill, anchor=anchor)
 
@@ -284,10 +288,7 @@ def project_3d(x: float, y: float, z: float, cx: float, cy: float,
 # ==============================================================================
 
 def iris_wipe(img_curr: Image.Image, img_prev: Image.Image, progress: float, max_radius: float = None) -> Image.Image:
-    """Seamless circular iris reveal transition from img_prev to img_curr.
-    
-    Allows outgoing and incoming scenes to animate concurrently.
-    """
+    """Seamless circular iris reveal transition from img_prev to img_curr."""
     if progress <= 0.0:
         return img_prev
     if progress >= 1.0:
@@ -302,6 +303,29 @@ def iris_wipe(img_curr: Image.Image, img_prev: Image.Image, progress: float, max
         fill=255
     )
     return Image.composite(img_curr, img_prev, mask)
+
+def vertical_push_transition(img_curr: Image.Image, img_prev: Image.Image, progress: float) -> Image.Image:
+    """Vertical push/swipe transition where incoming screen pushes outgoing screen upward.
+    
+    Mirrors native mobile/desktop app screen navigation.
+    """
+    progress = clamp(progress, 0.0, 1.0)
+    k = ease_in_out_cubic(progress)
+    off = int(k * img_curr.height)
+    canvas = Image.new("RGB", img_curr.size)
+    canvas.paste(img_prev, (0, -off))
+    canvas.paste(img_curr, (0, img_curr.height - off))
+    return canvas
+
+def horizontal_push_transition(img_curr: Image.Image, img_prev: Image.Image, progress: float) -> Image.Image:
+    """Horizontal push/swipe transition where incoming screen pushes outgoing screen sideways."""
+    progress = clamp(progress, 0.0, 1.0)
+    k = ease_in_out_cubic(progress)
+    off = int(k * img_curr.width)
+    canvas = Image.new("RGB", img_curr.size)
+    canvas.paste(img_prev, (-off, 0))
+    canvas.paste(img_curr, (img_curr.width - off, 0))
+    return canvas
 
 def apply_glow_bloom(img: np.ndarray, threshold: float = 90.0,
                      blur_radius: int = 8, intensity: float = 0.55) -> np.ndarray:
@@ -356,3 +380,64 @@ def lissajous_gradient_background(xx: np.ndarray, yy: np.ndarray, t: float,
     dist = np.sqrt((xx - ax)**2 + (yy - ay)**2) / 1400.0
     g = np.exp(-dist * 3.0)[..., None]
     return np.array(bg_base, np.float32) + g * np.array(tint, np.float32) * 0.22
+
+
+# ==============================================================================
+# 7. APP UI & PRODUCT SIMULATION HELPERS (VERSION 3)
+# ==============================================================================
+
+def generative_cover(pen: Pen, x: float, y: float, size: float, seed: int,
+                     base_color: Tuple[int, int, int], radius: float = 6.0) -> None:
+    """Generate procedural geometric album cover art with seeded variations (no external images).
+    
+    Kind 0: Overlapping translucent bubbles/dots.
+    Kind 1: Horizontal graphic bars.
+    Kind 2: Bold geometric triangle.
+    """
+    pen.rect(x, y, x + size, y + size, base_color, r=radius)
+    dark_tint = lerpc(base_color, (0, 0, 0), 0.35)
+    rng = np.random.RandomState(seed)
+    kind = seed % 3
+    if kind == 0:
+        for _ in range(4):
+            pen.ell(x + size * rng.uniform(0.2, 0.8),
+                    y + size * rng.uniform(0.2, 0.8),
+                    size * rng.uniform(0.1, 0.25), dark_tint)
+    elif kind == 1:
+        for i in range(5):
+            pen.rect(x + size * 0.1, y + size * (0.12 + i * 0.16),
+                     x + size * rng.uniform(0.3, 0.9), y + size * (0.20 + i * 0.16),
+                     dark_tint)
+    else:
+        pen.poly([
+            (x + size * 0.50, y + size * 0.15),
+            (x + size * 0.88, y + size * 0.85),
+            (x + size * 0.12, y + size * 0.85)
+        ], dark_tint)
+
+def mini_eq_bars(pen: Pen, x: float, y: float, t: float, color: Tuple[int, int, int], count: int = 3) -> None:
+    """Render miniature animated audio equalizer bars (used in active playlist rows)."""
+    for i in range(count):
+        h = 6 + 12 * abs(math.sin(t * (7.0 + i * 2.3) + i))
+        pen.rect(x + i * 7, y - h, x + i * 7 + 4, y, color)
+
+def draw_cursor(pen: Pen, x: float, y: float, fill: Tuple[int, int, int] = (255, 255, 255)) -> None:
+    """Render vector OS mouse pointer arrow for interactive UI micro-interactions."""
+    pen.poly([(x, y), (x, y + 30), (x + 8, y + 22), (x + 20, y + 22)], fill)
+
+def button_click_press(t: float, t_click: float, press_dur: float = 0.15,
+                       release_dur: float = 0.20, max_scale_reduction: float = 0.08) -> float:
+    """Calculate button scale factor (1.0 - 0.08 * press) simulating tactile UI click depression."""
+    press = prog(t, t_click, t_click + press_dur) - prog(t, t_click + press_dur, t_click + press_dur + release_dur)
+    return 1.0 - max_scale_reduction * clamp(press, 0.0, 1.0)
+
+def draw_click_ripple(pen: Pen, cx: float, cy: float, t: float, t_click: float,
+                      duration: float = 0.65, max_radius: float = 120.0,
+                      outline_color: Tuple[int, int, int] = (30, 215, 96),
+                      bg_color: Tuple[int, int, int] = (18, 18, 18)) -> None:
+    """Render expanding and fading circular shockwave ripple on button click."""
+    if t_click < t < t_click + duration:
+        p = prog(t, t_click, t_click + duration)
+        r = ease_out_cubic(p) * max_radius
+        col = lerpc(outline_color, bg_color, p)
+        pen.ell(cx, cy, r, outline=col, width=3.0)

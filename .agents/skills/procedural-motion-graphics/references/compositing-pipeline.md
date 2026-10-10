@@ -6,11 +6,15 @@ Broadcast-grade motion graphics in pure Python require careful attention to imag
 flowchart TD
     A[SSAA 1.5x Virtual Canvas: Pen] --> B[Lanczos Downsampling]
     B --> C{Render Aesthetic}
-    C -->|Flat / Editorial Wrapped| D[Zero Noise / Pristine Vectors]
-    C -->|Dark Cyber Glow| E[Bloom + CA + Grain + Vignette]
-    D --> F[Concurrent Iris Wipe Compositor]
-    E --> F
-    F --> G[H.264 libx264 Temporal Encoder]
+    C -->|App UI Simulation V3| D[Dark UI Macroblocks / Featherweight 1.25 MB]
+    C -->|Flat Wrapped V2| E[Solid Color Blocks / Compact 2.7 MB]
+    C -->|Dark Cyber Glow V1| F[Heavy Post Stack / Noise-Bound 48.8 MB]
+    D --> G[Vertical App Push Transition]
+    E --> H[Concurrent Iris Wipe]
+    F --> I[Cut Flash + CA Spikes]
+    G --> OUT[H.264 libx264 Temporal Encoder]
+    H --> OUT
+    I --> OUT
 ```
 
 ---
@@ -42,16 +46,27 @@ class Pen:
         return self.im.resize((1280, 720), Image.LANCZOS)
 ```
 
-**Benefits**:
-- Zero jagged edges on angled vectors or smooth text.
-- 100% deterministic CPU rendering without external OpenGL/Vulkan runtimes.
-
 ---
 
-## 2. Seamless Scene Transitions
+## 2. Transition Mechanics
 
-### 2.1 Concurrent Iris Wipes
-Rather than abrupt hard cuts, an iris wipe reveals the incoming scene from center outward while **the outgoing scene continues animating in the background**:
+### 2.1 Native App Vertical Push (Swipe)
+Simulates authentic mobile and desktop screen navigation:
+
+```python
+def vertical_push_transition(img_curr: Image.Image, img_prev: Image.Image, progress: float) -> Image.Image:
+    progress = clamp(progress, 0.0, 1.0)
+    k = ease_in_out_cubic(progress)
+    offset_y = int(k * img_curr.height)
+    
+    canvas = Image.new("RGB", img_curr.size)
+    canvas.paste(img_prev, (0, -offset_y))
+    canvas.paste(img_curr, (0, img_curr.height - offset_y))
+    return canvas
+```
+
+### 2.2 Concurrent Iris Wipes
+Reveals the incoming scene from the center outward while the outgoing scene continues actively animating in the background:
 
 ```python
 def iris_wipe(img_curr: Image.Image, img_prev: Image.Image, progress: float) -> Image.Image:
@@ -67,47 +82,21 @@ def iris_wipe(img_curr: Image.Image, img_prev: Image.Image, progress: float) -> 
     return Image.composite(img_curr, img_prev, mask)
 ```
 
-### 2.2 Sliding Reveal Masks (Stencils)
-Create Swiss editorial reveals by drawing headline typography and placing a sliding background-colored rectangle that slides away to the right:
-
-```python
-text_w = pen.tw(headline, size=100)
-pen.txt(x, y, headline, 100, WHITE, anchor="lm")
-# Reveal mask: background block slides off to the right
-wipe_k = smoothstep(prog(t, t_start, t_end))
-pen.rect(x + text_w * wipe_k - 2, y - 60, x + text_w + 30, y + 60, BG_COLOR)
-```
-
 ---
 
-## 3. Video Compression & Bitrate Efficiency: Flat vs. Noisy
+## 3. Video Compression & Bitrate Efficiency: The 3-Way Comparison
 
-| Metric | Version 1 (Dark Glow + Grain) | Version 2 (Flat Wrapped SSAA) |
-| :--- | :--- | :--- |
-| **Video File Size (15s @ 720p)** | **48.8 MB** | **2.7 MB (18x smaller!)** |
-| **Visual Style** | Cyber neon, bloom, grain plates | Flat color-block, Swiss editorial |
-| **Temporal Redundancy** | Extremely low (noise destroys P/B frames) | Extremely high (solid macroblocks) |
-| **Visual Sharpness** | Diffuse, blurred by bloom/grain | Razor-sharp, vector crispness |
-| **Encoding Speed** | Slower (heavy float post-processing) | Faster (pure vector drawing + SSAA) |
+| Metric | Version 1 (Cyber Glow) | Version 2 (Flat Wrapped) | Version 3 (App UI Simulation) |
+| :--- | :--- | :--- | :--- |
+| **Video File Size (15s @ 720p)** | **48.8 MB** | **2.7 MB** | **1.25 MB (Featherweight!)** |
+| **Compression Ratio vs. V1** | $1\times$ (Baseline) | **$18\times$ smaller** | **$39\times$ smaller** |
+| **Visual Direction** | Dark neon, bloom, grain | Flat color-block editorial | Native digital music player UI |
+| **Temporal Redundancy** | Low (Noise destroys P/B frames) | Very High (Solid color blocks) | **Extreme (Consistent dark UI surfaces)** |
+| **Rendering Speed** | Slowest (Float post passes) | Fast | **Fastest (Direct vector rasterization)** |
 
-### 3.1 Why Grain Destroys Compression
-H.264 video encoders rely on **Motion Estimation** and **Temporal Redundancy** (storing differences between adjacent frames in P-frames and B-frames).
-- **Procedural Film Grain**: Adding pseudo-random Gaussian noise plates ($\sigma = 7.0$) introduces uncorrelated high-frequency changes in every single pixel every single frame.
-- The encoder cannot find matching macroblocks from previous frames, forcing it to allocate massive bitrate to encode noise.
-
-### 3.2 The Flat Vector Advantage
-When using flat color-block design:
-- Solid background areas compress to near-zero bytes across consecutive frames.
-- Motion vectors cleanly track moving edges.
-- Result: **Broadcast-grade visual impact at 1/18th the file size**, ideal for web delivery, social sharing, and instant loading.
-
----
-
-## 4. Multi-Pass Glow Pipeline (When Dark Aesthetic is Needed)
-
-When a dark cyber aesthetic is explicitly required, apply the multi-pass post stack:
-
-1. **Downsampled Bloom**: Downscale 4x $\to$ Gaussian blur ($\sigma=8$) $\to$ threshold subtract ($\tau=90$) $\to$ additive blend.
-2. **Chromatic Aberration**: Displace Red right and Blue left by $2-16\text{px}$ on cut beats.
-3. **Vignette**: Radial quadratic falloff $(1.0 - 0.65 \cdot r^2)$.
-4. **Camera Shake**: 2D coordinate displacement on percussive hits.
+### 3.1 Why V3 Achieves Unprecedented Compression
+H.264 video compression relies heavily on temporal macroblock matching.
+1. **Consistent Dark Surfaces**: The persistent `#121212` background and `#1F1F1F` card backgrounds remain mathematically identical across seconds of playback.
+2. **Minimal Pixel Variance**: Only small, focused regions (moving mouse cursor, text highlight, 3 equalizer bars) change from frame to frame.
+3. **No Entropy Spoilers**: Without film grain noise or drifting gradient dithers, P-frames and B-frames require only a handful of bits to encode movement.
+4. **Result**: A 15-second, 30fps broadcast-quality video rendering in just **1.25 megabytes**, making it instant to load on any mobile device or web browser.

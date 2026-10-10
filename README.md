@@ -19,17 +19,26 @@ Every frame is a deterministic mathematical function of time $t \in \mathbb{R}$.
 
 ---
 
-## 🌟 The Two Design Pillars
+## 🌟 The Three Design Pillars
 
-The engine provides full procedural support for two distinct broadcast design paradigms:
+The engine provides full procedural support for three distinct broadcast design paradigms:
 
-### 1. Flat Editorial / "Spotify Wrapped" (Recommended & Desired)
+### 1. App UI & Native Product Simulation (Version 3 - Desired & Recommended)
+- **Concept**: **"The Resume IS the App"**. The video recreates the interactive screens of a modern music app (Spotify/Apple Music). The viewer navigates through real UI states:
+  - **Synced Lyrics (`LETRA`)**: Karaoke-style word illumination, auto-scroll, and background color crossfading.
+  - **Playlist Tracklist (`Currículo`)**: Professional experience as tracks with animated 3-bar green equalizers on active rows.
+  - **Discography Carousel**: Horizontal album cards with dynamic count-up statistics.
+  - **Artist Profile & Micro-Interactions**: Verified artist avatar, OS mouse cursor, button click depression (8%), expanding shockwave ripple, and button state morphing (`"FOLLOW"` $\to$ `"LET'S WORK ✓"`).
+- **Transitions**: Native vertical push / swipe transitions (`vertical_push_transition`).
+- **Timing & Curves**: Crisp Penner cubic easings (`ease_out_cubic`, `ease_in_out_cubic`, `ease_out_back`).
+- **Compression**: **Featherweight file size (~1.25 MB for 15s @ 720p — 39x smaller than V1!)** due to extreme macroblock consistency across dark UI surfaces.
+
+### 2. Flat Editorial / "Spotify Wrapped" (Version 2)
 - **Aesthetic**: Saturated color-block scenes (Green, Purple, Orange, Blue, Black), crisp typography with hard offset drop shadows (`offset 8, 8`), rounded pill badges, ranked countdown charts, spinning vinyl turntables, and dynamic waveform scrubbers.
 - **Physics**: Damped harmonic spring physics ($1 - e^{-kx}\cos(\omega x)$), squash & stretch ground impacts, dynamic floor contact shadows, and `smoothstep` wipes.
-- **SSAA Anti-Aliasing**: Authoring in virtual coordinates, rendering at $1.5\times$ scale via `Pen`, and downsampling with Lanczos filtering for razor-sharp vector curves.
-- **Compression Efficiency**: **~2.7 MB for 15s @ 720p (18x smaller!)** thanks to clean solid vector color blocks that maximize H.264 temporal inter-frame compression.
+- **Compression**: **~2.7 MB for 15s @ 720p**.
 
-### 2. Dark Cyber Glow Compositing
+### 3. Dark Cyber Glow Compositing (Version 1)
 - **Aesthetic**: Deep midnight navy backgrounds (`#080812`), drifting Lissajous radial gradients, and neon typography with chromatic 3D extrusions.
 - **3D & Particles**: Perspective-projected 3D orbital particle clouds, Euler rotation matrices, and Painter's Algorithm depth sorting.
 - **Post Pipeline**: Downsampled 4x Gaussian bloom, cut-triggered chromatic aberration spikes, and anti-banding film grain plates.
@@ -38,14 +47,15 @@ The engine provides full procedural support for two distinct broadcast design pa
 
 ## 📊 File Size & Bitrate Optimization Comparison
 
-| Metric | Version 1 (Dark Glow + Grain) | Version 2 (Flat Wrapped SSAA) |
-| :--- | :--- | :--- |
-| **Video File Size (15s @ 720p)** | **48.8 MB** | **2.7 MB (18x smaller!)** |
-| **Visual Direction** | Cyber neon, glow, grain plates | Flat color-block, Swiss editorial |
-| **Anti-Aliasing** | 1x rasterization + blur/grain mask | **SSAA 1.5x + Lanczos downsample** |
-| **Motion Dynamics** | Canned cubic Bézier curves | **Damped Harmonic Spring Physics** |
-| **Post-Processing Overhead** | Heavy (Bloom + CA + Grain + Vignette) | **Zero (Pristine clean vectors)** |
-| **Scene Transitions** | Hard cuts + white flash + CA jump | **Concurrent Iris Wipes + Mask Slides** |
+| Metric | Version 1 (Dark Cyber) | Version 2 (Flat Wrapped) | Version 3 (App UI Simulation) |
+| :--- | :--- | :--- | :--- |
+| **Video File Size (15s @ 720p)** | **48.8 MB** | **2.7 MB** | **1.25 MB (Featherweight!)** |
+| **Bitrate Reduction vs. V1** | $1\times$ (Baseline) | **$18\times$ smaller** | **$39\times$ smaller** |
+| **Visual Direction** | Dark neon, glow, grain | Flat color-block editorial | Native digital music player UI |
+| **Anti-Aliasing** | 1x rasterization + blur/grain mask | **SSAA 1.5x + Lanczos** | **SSAA 1.5x + Lanczos** |
+| **Motion Dynamics** | Canned cubic Bézier curves | Damped Harmonic Springs | **Crisp Penner UI Easings** |
+| **Screen Transitions** | Hard cuts + white flash + CA jump | Concurrent Iris Wipes | **Native App Vertical Swipes** |
+| **Micro-Interactions** | None | Squash & stretch impacts | **Cursor, click depression, ripples** |
 
 ---
 
@@ -79,7 +89,32 @@ git clone https://github.com/gnustella-lab/procedural-motion-graphics.git ~/.cla
 
 ## ⚡ Quickstarts
 
-### Option A: Flat Editorial / "Wrapped" Title (Version 2 Style)
+### Option A: Native App UI Simulation (Version 3 Style)
+
+```python
+import numpy as np
+from PIL import Image
+import imageio.v2 as imageio
+from scripts.motion_engine import Pen, ease_out_cubic, prog, mini_eq_bars
+
+W, H, FPS = 1280, 720, 30
+writer = imageio.get_writer("app_ui_preview.mp4", fps=FPS, codec="libx264", quality=8, pixelformat="yuv420p")
+
+for frame in range(90):  # 3 seconds
+    t = frame / FPS
+    pen = Pen("#121212", W, H, k=1.5)
+
+    # Active playlist track highlight with green equalizer
+    pen.rect(40, 300, 1240, 360, (31, 31, 31), r=6)
+    mini_eq_bars(pen, 64, 338, t, (30, 215, 96))
+    pen.txt(176, 320, "Kinetic Typography & Systems", 24, (30, 215, 96))
+
+    writer.append_data(np.asarray(pen.render()))
+
+writer.close()
+```
+
+### Option B: Flat Editorial / "Wrapped" Title (Version 2 Style)
 
 ```python
 import numpy as np
@@ -90,56 +125,16 @@ from scripts.motion_engine import Pen, spring, prog
 W, H, FPS = 1280, 720, 30
 writer = imageio.get_writer("wrapped_title.mp4", fps=FPS, codec="libx264", quality=8, pixelformat="yuv420p")
 
-for frame in range(90):  # 3 seconds
+for frame in range(90):
     t = frame / FPS
-    # 1. Super-Sampled Anti-Aliasing Canvas (1.5x Lanczos)
     pen = Pen("#1ED760", W, H, k=1.5)
-
-    # 2. Damped Spring Physics Entrance
     p = spring(prog(t, 0.2, 1.0), k=7, w=14)
     off_x = (1.0 - p) * -1200
 
-    # 3. Typography with Hard Offset Drop Shadow
     pen.txt(640 + off_x + 8, 360 + 8, "MOTION DESIGN", 140, (18, 18, 18))
     pen.txt(640 + off_x, 360, "MOTION DESIGN", 140, (255, 255, 255))
 
-    # 4. Downsample to pristine 720p
     writer.append_data(np.asarray(pen.render()))
-
-writer.close()
-```
-
-### Option B: Dark Cyber Kinetic Title (Version 1 Style)
-
-```python
-import numpy as np
-from PIL import Image, ImageDraw
-import imageio.v2 as imageio
-from scripts.motion_engine import ease_out_back, prog, lerp, get_font, apply_glow_bloom
-
-W, H, FPS = 1920, 1080, 30
-cx, cy = W / 2, H / 2
-font = get_font(180, bold=True)
-
-writer = imageio.get_writer("cyber_title.mp4", fps=FPS, codec="libx264", quality=9, pixelformat="yuv420p")
-
-for frame in range(90):  # 3 seconds
-    t = frame / FPS
-    layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-    draw = ImageDraw.Draw(layer)
-
-    q = ease_out_back(prog(t, 0.2, 1.2), s=2.0)
-    y = lerp(-200, cy, q)
-
-    # Chromatic offset extrusion
-    draw.text((cx + 6, y + 6), "CYBER", font=font, fill=(255, 46, 136, 160), anchor="mm")
-    draw.text((cx - 6, y - 4), "CYBER", font=font, fill=(0, 229, 255, 160), anchor="mm")
-    draw.text((cx, y), "CYBER", font=font, fill=(245, 245, 250, 255), anchor="mm")
-
-    # Composite & bloom
-    img = np.array((10, 10, 18), np.float32) * (1.0 - np.asarray(layer)[..., 3:4]/255) + np.asarray(layer)[..., :3] * (np.asarray(layer)[..., 3:4]/255)
-    img = apply_glow_bloom(img, threshold=80, intensity=0.5)
-    writer.append_data(img.clip(0, 255).astype(np.uint8))
 
 writer.close()
 ```
@@ -157,7 +152,7 @@ procedural-motion-graphics/
 ├── showreel_breakdown.txt                   # Detailed creative & technical notes
 ├── assets/                                  # Pre-rendered stills and animated GIF
 ├── scripts/                                 # Executable utilities & modular engine
-│   ├── motion_engine.py                     # Reusable SSAA Pen, springs, polar morphs, & math
+│   ├── motion_engine.py                     # SSAA Pen, app push, covers, cursor, springs, & math
 │   ├── render_showreel.py                   # Production CLI video renderer
 │   └── preview_frame.py                     # Fast single-frame preview CLI
 ├── examples/                                # Standalone tutorials and recipes
@@ -166,11 +161,13 @@ procedural-motion-graphics/
 │   ├── 03_orbital_particles_3d.py           # 3D perspective particle system
 │   ├── 04_logo_stroke_reveal.py             # Trim paths vector line-draw & elastic pop
 │   ├── 05_strobe_rhythmic_cuts.py           # High-energy 4-frame strobe cuts
-│   └── 06_flat_wrapped_editorial.py         # Flat Wrapped editorial, springs & polar morphs
+│   ├── 06_flat_wrapped_editorial.py         # Flat Wrapped editorial, springs & polar morphs
+│   └── 07_app_ui_product_simulation.py      # App UI simulation: synced lyrics, EQ bars, click ripple
 └── references/                              # In-depth technical documentation
-    ├── animation-math-and-easings.md        # Damped spring physics, squash & stretch, easings
-    ├── compositing-pipeline.md              # SSAA Pen, iris wipes, bitrate & H.264 optimization
-    ├── creative-direction-and-pacing.md     # Flat Editorial vs Dark Cyber design pillars
+    ├── app-ui-and-product-simulation.md     # Synced lyrics, app push swipes, covers, micro-interactions
+    ├── animation-math-and-easings.md        # Penner UI curves, spring physics, click depression
+    ├── compositing-pipeline.md              # SSAA Pen, vertical app swipes, 3-way bitrate optimization
+    ├── creative-direction-and-pacing.md     # The 3 Design Pillars (App UI, Wrapped, Cyber)
     ├── polar-shape-morphing-and-ui.md       # 2D polar radius formulas & music UI components
     ├── 3d-projection-in-2d.md               # Euler rotations & perspective divide
     └── kinetic-typography-and-mattes.md     # Advance metrics & track mattes
