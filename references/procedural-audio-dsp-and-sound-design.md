@@ -21,7 +21,20 @@ flowchart TD
 
 ---
 
-## 1. Timeline & Grid Synchronization
+## 1. Audio Engine Evolution: V1 $\to$ V2 $\to$ V3 $\to$ V4
+
+The sound synthesis pipeline underwent four major architectural iterations:
+
+| Version | Synthesizer Architecture | Harmonic Structure & Key | Filter Pipeline | Dynamic Processing | Foley Sound Design |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **V1 (`X ad 1`)** | Dual mono NumPy arrays summed to stereo | Low atmospheric drone (D1/A1/D2) + bass synth sequence | No digital filters (raw sine harmonics & unfiltered white noise) | No ducking (kick clutters drone and bass) | Basic telemetry ticks, no UI interaction sounds |
+| **V2 (`X ad 2`)** | Stereo buffer with SciPy SOS integration | 120 BPM beat with detuned saw pad | SciPy Butterworth 2-pole SOS lowpass & bandpass filters | Kick-triggered sidechain ducking envelope | Initial UI Foley (taps, heart pop, keystrokes, chimes, boom) |
+| **V3 (`X ad 3`)** | Compact inline mono generator in `make_x_ad.py` | 120 BPM, 4 chords using `np.sign` and `np.sin` | No digital filters (basic arithmetic envelopes) | Basic overall soft clipping | Simplified whoosh cuts only; stripped all UI micro-interaction Foley |
+| **V4 (`X ad 4` - Golden Standard)** | Modular stereo DSP engine (`x_ad_audio.py`) | 120 BPM, 4-bar progression in A minor (Am - F - C - G) | SciPy Butterworth SOS with dynamic lowpass sweep ($700\text{Hz} \to 2400\text{Hz}$) | Exponential kick sidechain ducking ($1 - 0.55e^{-9t}$) + master tanh limiter to $-1\text{ dBFS}$ | Comprehensive frame-accurate Foley catalog: word slam ticks, riser, tap clicks, heart pop chirp ($520 \to 1620\text{Hz}$), typing jitter, swoosh, triad notification chimes, sub-drop impact crash |
+
+---
+
+## 2. Timeline & Grid Synchronization
 
 Align musical tempo directly with frame rates:
 - **120 BPM** translates to exactly $0.50\text{s}$ per beat ($15\text{ frames}$ at 30 FPS).

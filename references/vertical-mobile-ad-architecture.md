@@ -12,17 +12,46 @@ flowchart TD
 
 ---
 
-## 1. The 5-Act Mobile Narrative Arc
+## 1. Architectural Evolution: V1 vs V2 vs V3 vs V4 (Why V4 is the Desired Golden Standard)
+
+The procedural motion engine evolved through four distinct architectural paradigms before establishing Version 4 as the golden standard for broadcast-grade mobile ads:
+
+```mermaid
+flowchart LR
+    V1["Version 1 (Desktop Landscape)<br/>1920x1080 16:9<br/>Dark Cyber & 3D Grid<br/>Naive NumPy Synth"] --> V2["Version 2 (Mobile Prototype)<br/>1080x1920 9:16<br/>First Mobile UI Simulation<br/>Monolithic Script & Heavy Blits"]
+    V2 --> V3["Version 3 (Minimalist Feed)<br/>720x1280 9:16<br/>Simplified Single File<br/>Stripped Modals & Chiptune Mono"]
+    V3 --> V4["Version 4 (Desired Golden Standard)<br/>1080x1920 Full HD<br/>Modular Engine + Bounded Alpha<br/>5-Act Mobile OS Storyline<br/>Procedural Media & QWERTY Pop<br/>Stereo DSP & Side-Chain Ducking"]
+```
+
+### Detailed Evolution Matrix
+
+| Engineering Dimension | Version 1 (`X ad 1`) | Version 2 (`X ad 2`) | Version 3 (`X ad 3`) | Version 4 (`X ad 4` - Desired Golden Standard) |
+| :--- | :--- | :--- | :--- | :--- |
+| **Target Platform** | Desktop / TV Landscape ($1920\times 1080$, 16:9) | Mobile Vertical ($1080\times 1920$, 9:16) | Mobile Vertical ($720\times 1280$, 9:16) | **Full-HD Mobile Vertical ($1080\times 1920$, 9:16)** |
+| **Visual World & Narrative** | Dark Cyber sci-fi space: 3D wireframe vanishing grid, drifting particle dust, 3 static horizontal cards side-by-side | Mobile app simulation prototype: SpaceX telemetry box, Elon post, modal compose, viral analytics card | Minimalist flat feed: stripped down text-only posts, kinetic cards cycling, simple end button | **Hyper-realistic mobile OS simulation: 5-Act storyline, kinetic typography pushes, generative animated media, QWERTY typing, viral toasts** |
+| **Anti-Aliasing (AA)** | $1\times$ native rasterization (visible pixel stepping on diagonals & text) | $1.5\times$ SSAA Lanczos downsampling ($1620\times 2880$ virtual canvas) | $1.5\times$ SSAA Lanczos downsampling ($1080\times 1920$ virtual canvas) | **$1.5\times$ SSAA Lanczos + Bounded Alpha Blitting (`_alpha`)** |
+| **Blitting & Performance** | Sequential single-threaded rendering | Monolithic single-threaded, full-frame alpha blitting (high memory & CPU overhead) | Compact single-threaded loop | **Multiprocessing pool (`multiprocessing.Pool`), chunked pipes to ffmpeg, fast `--preview` CLI** |
+| **Typography & Layout** | Hardcoded text boxes, rigid desktop layout | Hardcoded text positions, static card bounding boxes | Basic programmatic word wrap (`wrap`) | **Dynamic word wrap (`wrap`), automated height calculation (`layout_post`), adaptive font sizing (`fit_size`)** |
+| **Feed Media Fidelity** | Static 2D cards side-by-side | Static SpaceX telemetry text box | Text-only posts (no media cards) | **Three procedural generative animated media cards: (1) Rocket launch with smoke/flames, (2) Soccer scoreboard with confetti, (3) Sunset shimmer** |
+| **Micro-Interactions** | None (pure motion graphic) | Basic touch tap indicator, heart scale pop, button 8% depression | Simplified heart pop, outline button ripple | **Touch tap indicator (pad + compression + ripple), QWERTY key pop magnification, confetti burst on like, tactile CTA click** |
+| **Modal & Keyboard** | None | Slide-up compose modal, static keyboard base | None (removed completely) | **Modal `sheet_up` transition, live typing ticks, circular character counter ring, full QWERTY keyboard with spring key pop-up** |
+| **Transitions** | Horizontal slide & warp streak tunnel cut | Single vertical push between Act 1 & 2; abrupt scene cuts elsewhere | Hard flash cuts (white blend on cut timestamps) | **Complete modular transition suite: `vertical_push`, `sheet_up`, `sheet_down`, `zoom`** |
+| **Audio Engine** | Naive NumPy synth: ambient drone, simple kick/hat/bass, no filters | SciPy Butterworth SOS filters, 120 BPM beat, sidechain ducking | Minimal mono audio in same file: `np.sign` chords, no SciPy filters, no Foley | **Stereo binaural DSP in A minor, Butterworth SOS filters, detuned saw pads with cutoff sweep, kick sidechain ducking, frame-accurate UI Foley** |
+| **Code Structure** | Monolithic 683-line script + 189-line audio | Monolithic 840-line script + 303-line audio | Monolithic 232-line single script | **Clean modular separation: `x_ad.py` (visual engine) + `x_ad_audio.py` (DSP audio) + `motion_engine.py` (shared math)** |
+
+---
+
+## 2. The 5-Act Mobile Narrative Arc (V4 Standard)
 
 In a 15-second commercial, every frame must serve a narrative purpose. The **Hook-Feed-Compose-React-End** architecture structures pacing for maximum retention:
 
 | Act | Time Window | Scene Purpose | Motion Mechanics |
 | :--- | :--- | :--- | :--- |
-| **Act 1: The Hook** | $0.00\text{s} - 3.05\text{s}$ | Stop the scroll; pose questions with exponential text slams. | `ease_out_expo` text slams, pulsing "Happening Now" live chip, stacked pushes, underline sweep. |
-| **Act 2: The Feed** | $3.05\text{s} - 7.55\text{s}$ | Immerse viewer in authentic timeline experience. | Momentum scroll physics, procedural media cards (live rocket launch, sports score), touch tap indicator, heart burst, FAB tap. |
-| **Act 3: Compose** | $7.55\text{s} - 10.05\text{s}$ | Put the viewer in the creator's seat. | Modal slide-up (`sheet_up`), typing tick clacks, blinking cursor, active QWERTY key magnification pop, character counter ring. |
-| **Act 4: Reaction** | $10.05\text{s} - 12.05\text{s}$ | Emotional payoff: immediate viral validation. | Ramping counter metrics, floating heart physics, staggered incoming notification toasts from right, bell badge count climbs to "99+". |
-| **Act 5: Climax & CTA** | $12.05\text{s} - 15.00\text{s}$ | Brand permanence & call to action. | Zoom cut into dark space, brand logo bounce with dual shockwave rings, tactile CTA button depression (8%), click ripple, and web lockup. |
+| **Act 1: The Hook** | $0.00\text{s} - 3.05\text{s}$ | Stop the scroll; pose questions with exponential text slams. | `HOOK` stack with 4 phrases slamming on 120 BPM downbeats, stacked upward pushes aging prior lines to grey, pulsing "Happening now" live chip, hero slam "It's all happening.", and cyan underline sweep. |
+| **Act 2: The Feed** | $3.05\text{s} - 7.55\text{s}$ | Immerse viewer in authentic timeline experience. | Momentum scroll physics, dynamic post wrapping, 3 procedural animated media cards (rocket launch, sports score, sunset), interactive touch tap indicator, confetti heart burst, and FAB tap. |
+| **Act 3: Compose** | $7.55\text{s} - 10.05\text{s}$ | Put the viewer in the creator's seat. | Modal slide-up (`sheet_up`) over dimmed feed, audience dropdown pill ("Everyone"), live typing ticks, circular radial character counter, and full QWERTY keyboard with spring key pop-up magnification. |
+| **Act 4: Reaction** | $10.05\text{s} - 12.05\text{s}$ | Emotional payoff: immediate viral validation. | Ramping counter metrics to 284K+ views (`ease_out_expo`), floating sinusoidal hearts, 3 staggered notification toasts sliding in from right (`ease_out_back`), floating caption pill, and bell badge climbing to "99+". |
+| **Act 5: Climax & CTA** | $12.05\text{s} - 15.00\text{s}$ | Brand permanence & call to action. | Camera zoom transition into dark canvas, brand logo reveal with dual expanding shockwaves and precomputed Gaussian radial glow map (`glow_map`), tactile CTA button click depression (8%), and ripple. |
 
 ---
 

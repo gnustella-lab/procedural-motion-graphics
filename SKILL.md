@@ -1,11 +1,6 @@
 ---
 name: procedural-motion-graphics
-description: >-
-  Create broadcast-grade procedural motion graphics, kinetic typography, 2D/3D
-  particle systems, geometric morphs, and video showreels in pure Python
-  (NumPy + Pillow + imageio-ffmpeg) without external video editing software.
-  Supports Full-HD Vertical Mobile Product Ads & Procedural DSP Audio (V4 Desired Architecture),
-  Horizontal App UI Simulations, Flat Editorial / "Spotify Wrapped" vectors, and Dark Cyber Glow.
+description: Use when creating procedural motion graphics, 9:16 vertical mobile social video ads (V4 golden standard), kinetic typography, animated UI product simulations, procedural DSP electronic soundtracks, or vector animations in pure Python without external video editors.
 ---
 
 # Procedural Motion Graphics in Python
@@ -19,6 +14,8 @@ This skill equips agents with end-to-end expertise in generating broadcast-grade
 | Task | Command / Script | Reference |
 | :--- | :--- | :--- |
 | **Vertical Mobile Ad (V4 Desired)** | `python examples/08_vertical_social_ad_simulation.py` | 1080x1920, 5-act narrative, touch taps, keyboard, toasts, DSP audio |
+| **Instant Keyframe Preview (V4)** | `python examples/08_vertical_social_ad_simulation.py --preview 1 5 9` | Fast visual debugging in 0.5s |
+| **Procedural DSP Audio Synthesizer** | `python scripts/x_ad_audio.py` | Synthesizes 15s stereo DSP soundtrack + UI Foley to WAV |
 | **Horizontal App UI & Resume (V3)** | `python examples/07_app_ui_product_simulation.py` | Synced lyrics, vertical app swipe, EQ bars, cursor click ripple |
 | **Flat Wrapped Editorial (V2)** | `python examples/06_flat_wrapped_editorial.py` | SSAA 1.5x, spring physics, polar morph, iris wipe |
 | **Instant Frame Preview** | `python scripts/preview_frame.py --time 1.2 -o preview.png` | Fast visual debugging in 0.5s |
@@ -31,16 +28,17 @@ This skill equips agents with end-to-end expertise in generating broadcast-grade
 
 ## 2. Architectural Evolution: V1 $\to$ V2 $\to$ V3 $\to$ V4
 
-| Dimension | Version 1 (Dark Cyber) | Version 2 (Landscape App) | Version 3 (Minimal Feed) | Version 4 (Full-HD Vertical Ad - Desired) |
+| Dimension | Version 1 (`X ad 1` Desktop) | Version 2 (`X ad 2` Mobile Prototype) | Version 3 (`X ad 3` Minimalist Feed) | Version 4 (`X ad 4` - Desired Golden Standard) |
 | :--- | :--- | :--- | :--- | :--- |
-| **Aspect Ratio** | 1920x1080 (16:9 Landscape) | 1920x1080 (16:9 Landscape) | 720x1280 (9:16 Vertical) | **1080x1920 Full HD (9:16 Vertical)** |
-| **Visual World** | Sci-Fi grid & floating dust | Glassmorphism post in vacuum | Minimal flat feed scroll | **Hyper-realistic native mobile OS & timeline** |
-| **Anti-Aliasing** | 1x standard PIL (aliased) | 1x standard PIL (aliased) | 1.5x SSAA Lanczos | **1.5x SSAA Lanczos + Bounded Alpha Blits** |
-| **Interactivity** | None | Desktop mouse cursor | Feed scroll | **Touch tap indicator (pad + dip + shockwave ripple)** |
-| **Modals & Keyboard**| None | None | None | **Slide-up bottom sheet modal, QWERTY key pop magnification** |
-| **Feedback Alerts** | None | None | None | **Ramping live metrics, floating hearts, sliding toast alerts, bell "99+"** |
-| **Audio Engine** | Naive NumPy synth, mono | 128 BPM electronic, mono | Basic 4-chord pad, mono | **Stereo binaural DSP with SciPy Butterworth filters, side-chain ducking, UI Foley** |
-| **Render Engine** | Single-threaded | Single-threaded | Single-threaded | **Multi-core parallel processing (`multiprocessing.Pool`), CLI `--preview`** |
+| **Aspect Ratio & Resolution** | 1920x1080 (16:9 Landscape) | 1080x1920 (9:16 Vertical) | 720x1280 (9:16 Vertical) | **1080x1920 Full HD (9:16 Vertical)** |
+| **Visual Tone & World** | Sci-Fi 3D wireframe grid & floating dust | Mobile UI simulation with static text boxes | Minimal flat feed scroll, text-only posts | **Hyper-realistic native mobile OS & timeline simulation with generative animated media** |
+| **Anti-Aliasing & Blits** | 1x standard PIL (aliased) | 1.5x SSAA Lanczos, full-frame blits | 1.5x SSAA Lanczos (Pen class) | **1.5x SSAA Lanczos + Bounded Alpha Blits (`_alpha`)** |
+| **Interactivity & Gestures** | None (pure broadcast video) | Touch tap indicator, heart scale pop, button 8% depression | Simplified heart pop, outline button ripple | **Touch tap indicator (pad + dip + shockwave ripple), QWERTY key pop magnification, confetti burst on like** |
+| **Modals & Keyboard** | None | Slide-up modal sheet, static keyboard | None (stripped out) | **Modal `sheet_up` slide, live typing ticks, circular character counter, virtual QWERTY keyboard with spring key pop** |
+| **Feedback Alerts** | None | Analytics card, 3 sliding toasts | None | **Exponential counter ramping (284K+), floating sinusoidal hearts, 3 sliding notification toasts, bell badge to "99+"** |
+| **Audio Engine** | Naive NumPy synth, ambient drone | Initial SciPy SOS filter integration | Minimal mono chiptune-style audio in single file | **Stereo binaural DSP in A minor, Butterworth SOS filters, cutoff sweep, kick side-chain ducking, frame-accurate UI Foley** |
+| **Render Engine** | Single-threaded | Monolithic single-threaded | Single-threaded | **Multi-core parallel processing (`multiprocessing.Pool`), chunked pipes to ffmpeg, fast CLI `--preview`** |
+| **Code Structure** | Monolithic 683-line visual script | Monolithic 840-line script | Monolithic 232-line single script | **Clean modular separation: `x_ad.py` + `x_ad_audio.py` + `motion_engine.py`** |
 
 ---
 
