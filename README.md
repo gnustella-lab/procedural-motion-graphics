@@ -3,9 +3,9 @@
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Antigravity Skill](https://img.shields.io/badge/Antigravity-Skill-8A2BE2.svg)](https://github.com/gnustella-lab/procedural-motion-graphics)
-[![Zero Dependencies](https://img.shields.io/badge/External%20Software-None%20(Pure%20Code)-green.svg)](#)
+[![Zero External Software](https://img.shields.io/badge/External%20Software-None%20(Pure%20Code)-green.svg)](#)
 
-A complete, broadcast-grade procedural motion graphics and video synthesis system written entirely in pure Python (**Pillow + NumPy + imageio-ffmpeg**).
+A complete, broadcast-grade procedural motion graphics and video synthesis system written entirely in pure Python (**Pillow + NumPy + SciPy + imageio-ffmpeg**).
 
 Every frame is a deterministic mathematical function of time $t \in \mathbb{R}$. No After Effects, no Blender, no video editor, and no stock footage.
 
@@ -15,47 +15,53 @@ Every frame is a deterministic mathematical function of time $t \in \mathbb{R}$.
 
 ![Showreel Preview](assets/showreel_preview.gif)
 
-> **Output**: 1080p @ 30fps H.264 video rendered frame-by-frame directly in Python.
+> **Output**: 1080p @ 30fps H.264 video rendered frame-by-frame directly in Python with synchronized procedural audio.
 
 ---
 
-## 🌟 The Three Design Pillars
+## 🌟 The Four Design Pillars
 
-The engine provides full procedural support for three distinct broadcast design paradigms:
+The engine provides full procedural support for four progressive design paradigms, with **Pillar 1 (V4)** serving as the desired golden standard:
 
-### 1. App UI & Native Product Simulation (Version 3 - Desired & Recommended)
-- **Concept**: **"The Resume IS the App"**. The video recreates the interactive screens of a modern music app (Spotify/Apple Music). The viewer navigates through real UI states:
-  - **Synced Lyrics (`LETRA`)**: Karaoke-style word illumination, auto-scroll, and background color crossfading.
-  - **Playlist Tracklist (`Currículo`)**: Professional experience as tracks with animated 3-bar green equalizers on active rows.
-  - **Discography Carousel**: Horizontal album cards with dynamic count-up statistics.
-  - **Artist Profile & Micro-Interactions**: Verified artist avatar, OS mouse cursor, button click depression (8%), expanding shockwave ripple, and button state morphing (`"FOLLOW"` $\to$ `"LET'S WORK ✓"`).
-- **Transitions**: Native vertical push / swipe transitions (`vertical_push_transition`).
-- **Timing & Curves**: Crisp Penner cubic easings (`ease_out_cubic`, `ease_in_out_cubic`, `ease_out_back`).
-- **Compression**: **Featherweight file size (~1.25 MB for 15s @ 720p — 39x smaller than V1!)** due to extreme macroblock consistency across dark UI surfaces.
+### 1. Full-HD Vertical Mobile Product Ad & Procedural DSP Audio (Version 4 - Desired & Recommended)
+- **Concept**: **"The Product IS the Commercial"**. Native 1080x1920 (9:16 vertical) broadcast ad engineered for modern social feeds (TikTok, Instagram Reels, YouTube Shorts, X Timeline).
+- **5-Act Narrative Arc**:
+  - **Act 1: The Kinetic Hook ($0.0 - 3.0\text{s}$)**: High-energy kinetic typography slammed with exponential acceleration, pulsing live chips ("Happening Now"), and cyan underline sweeps.
+  - **Act 2: The Native Feed ($3.0 - 7.5\text{s}$)**: Realistic timeline feed with momentum scroll physics, procedural animated media cards (rocket launch with procedural smoke particles and flames, sports score with live confetti), and authentic touch tap indicators triggering heart scale pops and particle bursts.
+  - **Act 3: Compose Sheet Modal ($7.5 - 10.0\text{s}$)**: Slide-up bottom sheet modal (`sheet_up`) over dimmed background, full QWERTY keyboard with active key magnification pop-up, live typing ticks, and Post button tap ripple.
+  - **Act 4: Viral Payoff ($10.0 - 12.0\text{s}$)**: Explosive counter metrics, floating heart physics, staggered incoming notification toasts sliding in from the right, and bottom nav notification badge climbing to "99+".
+  - **Act 5: Monumental Climax & CTA ($12.0 - 15.0\text{s}$)**: Zoom cut into dark canvas, brand logo reveal with dual expanding shockwaves and radial glow, tactile CTA button click depression (8%), and ripple.
+- **Procedural Audio DSP Engine**:
+  - Pure Python synthesis with NumPy & SciPy Butterworth filters (`scipy.signal.butter` / `sosfilt`).
+  - Side-chain ducking: Kick triggers exponential envelope ducking on the synth pad and bass.
+  - Frame-accurate UI Foley sound design: word slam ticks, transition whooshes, touch tap clicks, heart pop bubbles, keystroke tick-clacks, post send whoosh, ascending notification chimes, and sub-drop impact booms.
 
-### 2. Flat Editorial / "Spotify Wrapped" (Version 2)
+### 2. Horizontal App UI & Product Simulation (Version 3)
+- **Concept**: **"The Resume IS the App"**. Interactive digital music player (Spotify/Apple Music) in 16:9 landscape ($1280\times 720$).
+- **Features**: Synced karaoke lyrics, playlist tracklists with 3-bar animated green equalizer bars (`mini_eq_bars`), generative geometric album covers, and desktop mouse pointer click depression.
+
+### 3. Flat Editorial / "Spotify Wrapped" (Version 2)
 - **Aesthetic**: Saturated color-block scenes (Green, Purple, Orange, Blue, Black), crisp typography with hard offset drop shadows (`offset 8, 8`), rounded pill badges, ranked countdown charts, spinning vinyl turntables, and dynamic waveform scrubbers.
 - **Physics**: Damped harmonic spring physics ($1 - e^{-kx}\cos(\omega x)$), squash & stretch ground impacts, dynamic floor contact shadows, and `smoothstep` wipes.
-- **Compression**: **~2.7 MB for 15s @ 720p**.
 
-### 3. Dark Cyber Glow Compositing (Version 1)
+### 4. Dark Cyber Glow Compositing (Version 1)
 - **Aesthetic**: Deep midnight navy backgrounds (`#080812`), drifting Lissajous radial gradients, and neon typography with chromatic 3D extrusions.
 - **3D & Particles**: Perspective-projected 3D orbital particle clouds, Euler rotation matrices, and Painter's Algorithm depth sorting.
-- **Post Pipeline**: Downsampled 4x Gaussian bloom, cut-triggered chromatic aberration spikes, and anti-banding film grain plates.
 
 ---
 
-## 📊 File Size & Bitrate Optimization Comparison
+## 📊 Architectural Evolution Matrix (V1 $\to$ V2 $\to$ V3 $\to$ V4)
 
-| Metric | Version 1 (Dark Cyber) | Version 2 (Flat Wrapped) | Version 3 (App UI Simulation) |
-| :--- | :--- | :--- | :--- |
-| **Video File Size (15s @ 720p)** | **48.8 MB** | **2.7 MB** | **1.25 MB (Featherweight!)** |
-| **Bitrate Reduction vs. V1** | $1\times$ (Baseline) | **$18\times$ smaller** | **$39\times$ smaller** |
-| **Visual Direction** | Dark neon, glow, grain | Flat color-block editorial | Native digital music player UI |
-| **Anti-Aliasing** | 1x rasterization + blur/grain mask | **SSAA 1.5x + Lanczos** | **SSAA 1.5x + Lanczos** |
-| **Motion Dynamics** | Canned cubic Bézier curves | Damped Harmonic Springs | **Crisp Penner UI Easings** |
-| **Screen Transitions** | Hard cuts + white flash + CA jump | Concurrent Iris Wipes | **Native App Vertical Swipes** |
-| **Micro-Interactions** | None | Squash & stretch impacts | **Cursor, click depression, ripples** |
+| Dimension | Version 1 (Dark Cyber) | Version 2 (Landscape App) | Version 3 (Minimal Feed) | Version 4 (Full-HD Vertical Ad - Desired) |
+| :--- | :--- | :--- | :--- | :--- |
+| **Aspect Ratio & Resolution** | 1920x1080 (16:9 Landscape) | 1920x1080 (16:9 Landscape) | 720x1280 (9:16 Vertical) | **1080x1920 Full HD (9:16 Vertical)** |
+| **Visual Tone** | Sci-Fi grid & floating dust | Glassmorphism post in vacuum | Minimal flat feed scroll | **Hyper-realistic native mobile OS & timeline** |
+| **Anti-Aliasing** | 1x standard PIL (aliased) | 1x standard PIL (aliased) | 1.5x SSAA Lanczos | **1.5x SSAA Lanczos + Bounded Alpha Blits** |
+| **Interactivity & Gestures** | None | Desktop mouse cursor | Feed scroll | **Touch tap indicator (pad + dip + shockwave ripple)** |
+| **Modals & Keyboard** | None | None | None | **Slide-up bottom sheet modal, QWERTY key pop magnification** |
+| **Dynamic Notifications** | None | None | None | **Ramping live metrics, floating hearts, sliding toast alerts, bell "99+"** |
+| **Audio Engine** | Naive NumPy synth, mono | 128 BPM electronic, mono | Basic 4-chord pad, mono | **Stereo binaural DSP with SciPy Butterworth filters, side-chain ducking, UI Foley** |
+| **Rendering Pipeline** | Single-threaded | Single-threaded | Single-threaded | **Multi-core parallel processing (`multiprocessing.Pool`), CLI `--preview`** |
 
 ---
 
@@ -64,79 +70,41 @@ The engine provides full procedural support for three distinct broadcast design 
 ### 1. Install Dependencies
 
 ```bash
-pip install numpy pillow imageio imageio-ffmpeg
+pip install numpy pillow scipy imageio imageio-ffmpeg
 ```
 
 ### 2. Use as an Agent Skill
 
 #### In Google Antigravity
-Clone this repository directly into your project's `.agents/skills/` directory or your global skills configuration:
+Clone this repository directly into your project's `.agents/skills/` directory:
 ```bash
 git clone https://github.com/gnustella-lab/procedural-motion-graphics.git .agents/skills/procedural-motion-graphics
-```
-
-#### In Hermes Agent
-```bash
-git clone https://github.com/gnustella-lab/procedural-motion-graphics.git ~/.hermes/skills/procedural-motion-graphics
-```
-
-#### In Claude Code
-```bash
-git clone https://github.com/gnustella-lab/procedural-motion-graphics.git ~/.claude/skills/procedural-motion-graphics
 ```
 
 ---
 
 ## ⚡ Quickstarts
 
-### Option A: Native App UI Simulation (Version 3 Style)
+### Option A: Vertical Mobile Social Ad (V4 Desired Architecture)
 
-```python
-import numpy as np
-from PIL import Image
-import imageio.v2 as imageio
-from scripts.motion_engine import Pen, ease_out_cubic, prog, mini_eq_bars
+Run the full vertical social ad simulation:
 
-W, H, FPS = 1280, 720, 30
-writer = imageio.get_writer("app_ui_preview.mp4", fps=FPS, codec="libx264", quality=8, pixelformat="yuv420p")
-
-for frame in range(90):  # 3 seconds
-    t = frame / FPS
-    pen = Pen("#121212", W, H, k=1.5)
-
-    # Active playlist track highlight with green equalizer
-    pen.rect(40, 300, 1240, 360, (31, 31, 31), r=6)
-    mini_eq_bars(pen, 64, 338, t, (30, 215, 96))
-    pen.txt(176, 320, "Kinetic Typography & Systems", 24, (30, 215, 96))
-
-    writer.append_data(np.asarray(pen.render()))
-
-writer.close()
+```bash
+python examples/08_vertical_social_ad_simulation.py
 ```
 
-### Option B: Flat Editorial / "Wrapped" Title (Version 2 Style)
+### Option B: Native App UI Simulation (V3 Horizontal Style)
 
-```python
-import numpy as np
-from PIL import Image
-import imageio.v2 as imageio
-from scripts.motion_engine import Pen, spring, prog
+```bash
+python examples/07_app_ui_product_simulation.py
+```
 
-W, H, FPS = 1280, 720, 30
-writer = imageio.get_writer("wrapped_title.mp4", fps=FPS, codec="libx264", quality=8, pixelformat="yuv420p")
+### Option C: Instant Frame Inspection CLI
 
-for frame in range(90):
-    t = frame / FPS
-    pen = Pen("#1ED760", W, H, k=1.5)
-    p = spring(prog(t, 0.2, 1.0), k=7, w=14)
-    off_x = (1.0 - p) * -1200
+Generate keyframe previews in 0.5s:
 
-    pen.txt(640 + off_x + 8, 360 + 8, "MOTION DESIGN", 140, (18, 18, 18))
-    pen.txt(640 + off_x, 360, "MOTION DESIGN", 140, (255, 255, 255))
-
-    writer.append_data(np.asarray(pen.render()))
-
-writer.close()
+```bash
+python scripts/preview_frame.py --time 1.2 -o preview.png
 ```
 
 ---
@@ -148,33 +116,36 @@ procedural-motion-graphics/
 ├── SKILL.md                                 # Main Agentic Skill specification
 ├── README.md                                # Public GitHub presentation & guides
 ├── LICENSE                                  # MIT License
-├── showreel.py                              # Master 15s showreel source
-├── showreel_breakdown.txt                   # Detailed creative & technical notes
-├── assets/                                  # Pre-rendered stills and animated GIF
-├── scripts/                                 # Executable utilities & modular engine
-│   ├── motion_engine.py                     # SSAA Pen, app push, covers, cursor, springs, & math
-│   ├── render_showreel.py                   # Production CLI video renderer
-│   └── preview_frame.py                     # Fast single-frame preview CLI
-├── examples/                                # Standalone tutorials and recipes
-│   ├── 01_quickstart_kinetic_title.py       # Kinetic typography & chromatic extrude
-│   ├── 02_radial_shape_bloom.py             # Geometric polygon vertex morphing
+├── showreel.py                              # Master 15s Showreel render script
+├── showreel_breakdown.txt                   # Scene-by-scene timing and creative bible
+├── assets/                                  # Keyframe stills & animated previews
+├── examples/                                # Standalone self-contained recipes
+│   ├── 01_quickstart_kinetic_title.py       # Title sequence with bounce & bloom
+│   ├── 02_radial_shape_bloom.py             # Geometric ray bursts & pulsing rings
 │   ├── 03_orbital_particles_3d.py           # 3D perspective particle system
-│   ├── 04_logo_stroke_reveal.py             # Trim paths vector line-draw & elastic pop
-│   ├── 05_strobe_rhythmic_cuts.py           # High-energy 4-frame strobe cuts
-│   ├── 06_flat_wrapped_editorial.py         # Flat Wrapped editorial, springs & polar morphs
-│   └── 07_app_ui_product_simulation.py      # App UI simulation: synced lyrics, EQ bars, click ripple
-└── references/                              # In-depth technical documentation
-    ├── app-ui-and-product-simulation.md     # Synced lyrics, app push swipes, covers, micro-interactions
-    ├── animation-math-and-easings.md        # Penner UI curves, spring physics, click depression
-    ├── compositing-pipeline.md              # SSAA Pen, vertical app swipes, 3-way bitrate optimization
-    ├── creative-direction-and-pacing.md     # The 3 Design Pillars (App UI, Wrapped, Cyber)
-    ├── polar-shape-morphing-and-ui.md       # 2D polar radius formulas & music UI components
-    ├── 3d-projection-in-2d.md               # Euler rotations & perspective divide
-    └── kinetic-typography-and-mattes.md     # Advance metrics & track mattes
+│   ├── 04_logo_stroke_reveal.py             # Vector emblem drawing animation
+│   ├── 05_strobe_rhythmic_cuts.py           # Strobe cuts with chromatic aberration
+│   ├── 06_flat_wrapped_editorial.py         # Saturated editorial, springs & iris wipes
+│   ├── 07_app_ui_product_simulation.py      # Horizontal music app simulation (V3)
+│   └── 08_vertical_social_ad_simulation.py  # Full-HD Vertical mobile commercial (V4 Desired)
+├── references/                              # Deep technical manuals
+│   ├── vertical-mobile-ad-architecture.md   # V4 Vertical Mobile Ad & 5-Act framework
+│   ├── procedural-audio-dsp-and-sound-design.md # Pure Python sound synthesis & DSP
+│   ├── app-ui-and-product-simulation.md     # Native UI & interaction mechanics
+│   ├── animation-math-and-easings.md        # Mathematical easing functions & springs
+│   ├── polar-shape-morphing-and-ui.md       # 2D polar geometry & morphing
+│   ├── 3d-projection-in-2d.md               # 3D rotations & perspective division
+│   ├── kinetic-typography-and-mattes.md     # Text measurement & track mattes
+│   ├── compositing-pipeline.md              # Multi-pass bloom, chromatic aberration, grain
+│   └── creative-direction-and-pacing.md     # Pacing guidelines & comparative matrices
+└── scripts/
+    ├── motion_engine.py                     # Universal mathematical & rendering toolkit
+    ├── preview_frame.py                     # Rapid single-frame inspection tool
+    └── render_showreel.py                   # High-performance showreel compiler
 ```
 
 ---
 
-## 📄 License
+## 📜 License
 
-MIT License. Free for personal, commercial, and educational use.
+MIT License. Free to use in commercial and personal projects.
