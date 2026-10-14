@@ -23,6 +23,7 @@ Usage:
 import argparse
 import math
 import os
+import subprocess
 import sys
 import time
 from multiprocessing import Pool
@@ -63,12 +64,40 @@ RED = (244, 33, 46)
 # Scene timing (synchronized with procedural soundtrack in x_ad_audio.py)
 S_HOOK, S_FEED, S_COMPOSE, S_REACT, S_END = 0.0, 3.05, 7.55, 10.05, 12.05
 
-# ============================================================== typography & font loader
+# ============================================================== cross-platform typography & font loader
 FONT_FILES = {
-    "black": ["C:/Windows/Fonts/seguibl.ttf", "C:/Windows/Fonts/ariblk.ttf", "C:/Windows/Fonts/arialbd.ttf"],
-    "bold": ["C:/Windows/Fonts/segoeuib.ttf", "C:/Windows/Fonts/arialbd.ttf"],
-    "semibold": ["C:/Windows/Fonts/seguisb.ttf", "C:/Windows/Fonts/segoeuib.ttf", "C:/Windows/Fonts/arialbd.ttf"],
-    "regular": ["C:/Windows/Fonts/segoeui.ttf", "C:/Windows/Fonts/arial.ttf"],
+    "black": [
+        "C:/Windows/Fonts/seguibl.ttf",
+        "C:/Windows/Fonts/ariblk.ttf",
+        "C:/Windows/Fonts/arialbd.ttf",
+        "/usr/share/fonts/opentype/inter/InterDisplay-Black.otf",
+        "/usr/share/fonts/opentype/inter/Inter-Black.otf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+        "/System/Library/Fonts/Helvetica.ttc",
+    ],
+    "bold": [
+        "C:/Windows/Fonts/segoeuib.ttf",
+        "C:/Windows/Fonts/arialbd.ttf",
+        "/usr/share/fonts/opentype/inter/Inter-Bold.otf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+        "/System/Library/Fonts/Helvetica.ttc",
+    ],
+    "semibold": [
+        "C:/Windows/Fonts/seguisb.ttf",
+        "C:/Windows/Fonts/segoeuib.ttf",
+        "C:/Windows/Fonts/arialbd.ttf",
+        "/usr/share/fonts/opentype/inter/Inter-SemiBold.otf",
+        "/usr/share/fonts/opentype/inter/Inter-Bold.otf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+        "/System/Library/Fonts/Helvetica.ttc",
+    ],
+    "regular": [
+        "C:/Windows/Fonts/segoeui.ttf",
+        "C:/Windows/Fonts/arial.ttf",
+        "/usr/share/fonts/opentype/inter/Inter-Regular.otf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        "/System/Library/Fonts/Helvetica.ttc",
+    ],
 }
 _FONTS = {}
 
@@ -125,7 +154,7 @@ def fmt(n):
     return f"{n / 1e6:.1f}M".replace(".0M", "M")
 
 
-# ============================================================== canvas with bounded alpha
+# ============================================================== canvas with 1-channel bounded alpha
 class Canvas:
     """Super-sampled drawing surface; all coordinates are in output pixels."""
 
@@ -164,13 +193,13 @@ class Canvas:
             return
         self.d.text((x * K, y * K), s, font=font(size * K, w), fill=fill, anchor=anchor)
 
-    # --- Bounded alpha blits: allocate small local masks only
+    # --- Bounded alpha blits: allocate small 1-channel "L" local masks only
     def _alpha(self, x0, y0, x1, y1, color, a, draw_fn):
         a = clamp(a)
         if a <= 0:
             return
-        X0, Y0 = int(math.floor(x0 * K)) - 2, int(math.floor(y0 * K)) - 2
-        X1, Y1 = int(math.ceil(x1 * K)) + 2, int(math.ceil(y1 * K)) + 2
+        X0, Y0 = max(0, int(math.floor(x0 * K)) - 2), max(0, int(math.floor(y0 * K)) - 2)
+        X1, Y1 = min(self.im.size[0], int(math.ceil(x1 * K)) + 2), min(self.im.size[1], int(math.ceil(y1 * K)) + 2)
         if X1 <= X0 or Y1 <= Y0:
             return
         m = Image.new("L", (X1 - X0, Y1 - Y0), 0)
@@ -210,7 +239,7 @@ class Canvas:
 
 
 def vgrad(c, stops):
-    """Fill a canvas with a vertical multi-stop gradient."""
+    """Fill a canvas with a vertical multi-stop gradient. stops=[(pos, color), ...]."""
     hpx, wpx = c.im.size[1], c.im.size[0]
     y = np.linspace(0, 1, hpx)
     cols = np.zeros((hpx, 3), np.float32)
@@ -220,7 +249,7 @@ def vgrad(c, stops):
     c.im.paste(Image.fromarray(arr))
 
 
-# ============================================================== brand vectors & icons
+# ============================================================== brand / icons
 XL_OUT = [(18.244, 2.25), (21.552, 2.25), (14.325, 10.51), (22.827, 21.75), (16.17, 21.75),
           (10.956, 14.933), (4.99, 21.75), (1.68, 21.75), (9.41, 12.915), (1.254, 2.25),
           (8.08, 2.25), (12.793, 8.481)]
@@ -321,7 +350,7 @@ def status_bar(c, col=WHITE):
 
 
 def tap(c, x, y, t, t_tap, col=WHITE, ripple=BLUE):
-    """Touch indicator: soft finger dot that dips, followed by an expanding ripple."""
+    """Touch indicator: soft finger dot that presses, then an expanding ripple."""
     a = min(prog(t, t_tap - 0.32, t_tap - 0.06), 1 - prog(t, t_tap + 0.12, t_tap + 0.42))
     if a > 0:
         press = clamp(prog(t, t_tap - 0.06, t_tap + 0.02) - prog(t, t_tap + 0.08, t_tap + 0.24))
@@ -345,7 +374,7 @@ def caption(c, cx, cy, text, lt, t_in, t_out=None, size=58, fill=BLUE, tcol=WHIT
     c.txt(cx, cy - size * 0.06 * e, text, size * e, tcol, "mm", "black")
 
 
-# ============================================================== act 1: kinetic hook
+# ============================================================== scene 1: hook
 HOOK = [("Breaking news.", "Trending worldwide · 1.2M posts"),
         ("Live sports.", "Sports · Trending · 482K posts"),
         ("Hot takes.", "Trending in Tech · 96K posts"),
@@ -388,7 +417,7 @@ def scene_hook(t):
             c.ell(92, y + 96, 7, fill=lerpc(BLACK, BLUE, mk))
             c.txt(112, y + 94, meta, 34, lerpc(BLACK, BLUE, mk), "lm", "semibold")
 
-    # Final hero slam: "It's all / happening."
+    # Final slam: "It's all / happening."
     for k, (word, col, dt) in enumerate((("It's all", WHITE, 0.0), ("happening.", BLUE, 0.12))):
         p = prog(t, FINAL_T + dt, FINAL_T + dt + 0.4)
         if p <= 0:
@@ -397,8 +426,7 @@ def scene_hook(t):
         fade = ease_out_cubic(prog(t, FINAL_T + dt, FINAL_T + dt + 0.12))
         y = 880 + k * FINAL_SIZE * 1.08
         c.txt(80, y, word, FINAL_SIZE * s, lerpc(BLACK, col, fade), "lm", "black")
-
-    # Underline sweep
+    # underline sweep
     u = ease_in_out_cubic(prog(t, FINAL_T + 0.3, FINAL_T + 0.75))
     if u > 0:
         uw = tw("happening.", FINAL_SIZE, "black") * u
@@ -407,7 +435,7 @@ def scene_hook(t):
     return c.render()
 
 
-# ============================================================== act 2: native timeline feed
+# ============================================================== scene 2: feed
 FX0, FX1 = 170, 1040
 BODY, LH = 40, 54
 MEDIA_H = 470
@@ -473,27 +501,22 @@ def media_rocket(w, h, t):
         c.ell(x, y, r, fill=lerpc((30, 30, 60), WHITE, tw_))
     rise = 40 * t + 6 * t * t
     x, base = w * 0.55, h * 0.78 - rise
-    # Smoke plume
     for i in range(14):
         a = i / 13
         sx = x + math.sin(i * 1.7 + t * 2) * 30 * a + (i % 3 - 1) * 40 * a
         sy = h * 0.80 + (base - h * 0.78) * (1 - a) * 0.6 + 40 * a
         c.ell(sx, min(sy, h * 0.95), 30 + 70 * a, fill=lerpc((150, 130, 150), (70, 50, 80), a))
-    # Animated flame
     fl = 90 + 22 * math.sin(t * 45) + 10 * math.sin(t * 71)
     c.poly([(x - 22, base), (x, base + fl), (x + 22, base)], fill=(255, 140, 40))
     c.poly([(x - 11, base), (x, base + fl * 0.6), (x + 11, base)], fill=(255, 235, 150))
-    # Rocket body
     c.poly([(x - 26, base - 10), (x - 58, base + 24), (x - 26, base - 60)], fill=(170, 175, 190))
     c.poly([(x + 26, base - 10), (x + 58, base + 24), (x + 26, base - 60)], fill=(170, 175, 190))
     c.rect(x - 26, base - 230, x + 26, base, fill=(240, 242, 248), r=10)
     c.poly([(x - 26, base - 226), (x, base - 300), (x + 26, base - 226)], fill=(240, 242, 248))
-    c.rect(x - 26, base - 120, x + 26, base - 108, fill=BLUE)
+    c.rect(x - 26, base - 120, x + 26, base - 108, fill=(29, 155, 240))
     c.ell(x, base - 170, 12, fill=(20, 30, 60))
-    # Tower
     c.poly([(0, h), (0, h * 0.86), (w * 0.3, h * 0.82), (w * 0.7, h * 0.85), (w, h * 0.80), (w, h)], fill=(14, 10, 22))
     c.rect(w * 0.42, h * 0.40, w * 0.44, h * 0.84, fill=(30, 26, 40))
-    # LIVE chips
     c.rect(24, 24, 124, 70, fill=RED, r=10)
     c.txt(74, 46, "LIVE", 28, WHITE, "mm", "black")
     c.alpha_rect(136, 24, 136 + tw("1.2M watching", 26, "semibold") + 30, 70, BLACK, 0.55, r=10)
@@ -509,7 +532,7 @@ def media_score(w, h, t):
     c.alpha_ell(w / 2, h / 2, 120, WHITE, 0.25, width=4)
     c.alpha_rect(w / 2 - 2, 0, w / 2 + 2, h, WHITE, 0.25)
     rng = np.random.RandomState(11)
-    for i in range(60):  # Confetti
+    for i in range(60):
         x0 = rng.uniform(0, w)
         sp = rng.uniform(60, 160)
         y = (rng.uniform(-h, h) + t * sp) % (h + 40) - 20
@@ -590,7 +613,7 @@ def draw_post(c, i, y, lt):
         vals[2] += 1
         q = prog(lt, LIKE_T + 0.03, LIKE_T + 0.35)
         pop = 0.4 + 0.6 * ease_out_back(q, 3.0)
-        if q < 1:  # Burst confetti particles
+        if q < 1:
             hx = FX0 + 430 + 22
             for k in range(8):
                 a = k / 8 * 2 * math.pi
@@ -665,7 +688,7 @@ def scene_feed(lt):
     return c.render()
 
 
-# ============================================================== act 3: compose modal & qwerty
+# ============================================================== scene 3: compose
 TYPED = "Hello, X. What's everyone talking about?"
 TYPE_T0, TYPE_T1, POST_T = 0.45, 1.75, 2.1
 TYPE_DT = (TYPE_T1 - TYPE_T0) / len(TYPED)
@@ -725,7 +748,6 @@ def keyboard(c, lt):
                         (cx - 30, cy)], WHITE, 3.5)
         else:
             c.txt((x0 + x1) / 2, (y0 + y1) / 2 - 3, lab, 34, WHITE, "mm", "regular")
-    # Active key spring pop-up magnification
     if active and active in KEYS and active != " ":
         x0, y0, x1, y1 = KEYS[active]
         s = ease_out_back(clamp(act_t / 0.05), 2.0)
@@ -771,7 +793,6 @@ def scene_compose(lt):
 
     caption(c, 540, 860, "Say it your way.", lt, 0.4, 1.85)
 
-    # Toolbar and circular character counter
     c.ell(76, 1110, 17, outline=BLUE, width=3)
     c.ell(76, 1110, 7, outline=BLUE, width=3, ry=17)
     c.line([(59, 1110), (93, 1110)], BLUE, 3)
@@ -795,7 +816,7 @@ def scene_compose(lt):
     return c.render()
 
 
-# ============================================================== act 4: viral reaction & toasts
+# ============================================================== scene 4: reaction
 R_LINES = wrap(TYPED, 56, "regular", 980)
 R_TEXT_Y = 470
 R_META_Y = R_TEXT_Y + (len(R_LINES) - 1) * 76 + 92
@@ -844,7 +865,6 @@ def scene_reaction(lt):
     ico_share(c, 970, ay, 50, GREY)
     c.rect(0, ay + 62, W, ay + 64, fill=BORDER)
 
-    # Floating hearts
     rng = np.random.RandomState(5)
     for k in range(10):
         ts = 0.15 + k * 0.11
@@ -882,7 +902,7 @@ def scene_reaction(lt):
     return c.render()
 
 
-# ============================================================== act 5: climax & cta
+# ============================================================== scene 5: end card
 TAG = "Join the conversation."
 TAG_SIZE = fit_size([TAG], "black", 940, 92)
 LOGO_Y = 760
@@ -930,7 +950,7 @@ def scene_end(lt):
     return Image.fromarray(arr.clip(0, 255).astype(np.uint8))
 
 
-# ============================================================== timeline & transitions
+# ============================================================== timeline compositor
 SCENES = [(S_HOOK, scene_hook), (S_FEED, scene_feed), (S_COMPOSE, scene_compose),
           (S_REACT, scene_reaction), (S_END, scene_end)]
 TRANS = [None, ("push", 0.45), ("sheet_up", 0.40), ("sheet_down", 0.40), ("zoom", 0.35)]
@@ -992,7 +1012,7 @@ def render_frame(i):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--preview", type=float, nargs="*")
-    ap.add_argument("--out", default="vertical_social_ad_15s.mp4")
+    ap.add_argument("--out", default="x_ad_15s.mp4")
     ap.add_argument("--workers", type=int, default=max(1, (os.cpu_count() or 2)))
     ap.add_argument("--no-audio", action="store_true")
     args = ap.parse_args()
@@ -1005,27 +1025,50 @@ def main():
             print("wrote", path)
         return
 
-    import imageio_ffmpeg
     audio = None
     if not args.no_audio:
         audio = x_ad_audio.write_wav("x_ad_audio.wav")
         print("soundtrack:", audio)
 
     total = int(DUR * FPS)
-    out_params = ["-crf", "17", "-preset", "medium", "-movflags", "+faststart"]
-    if audio:
-        out_params += ["-b:a", "192k", "-shortest"]
-    writer = imageio_ffmpeg.write_frames(args.out, (W, H), fps=FPS, codec="libx264", quality=None,
-                                         macro_block_size=8, output_params=out_params,
-                                         audio_path=audio, audio_codec="aac" if audio else None)
-    writer.send(None)
     t0 = time.time()
-    with Pool(args.workers) as pool:
-        for i, fr in enumerate(pool.imap(render_frame, range(total), chunksize=3)):
-            writer.send(fr)
-            if i % 30 == 0:
-                print(f"  frame {i}/{total}  ({time.time() - t0:.1f}s)", flush=True)
-    writer.close()
+
+    try:
+        import imageio_ffmpeg
+        out_params = ["-crf", "17", "-preset", "medium", "-movflags", "+faststart"]
+        if audio:
+            out_params += ["-b:a", "192k", "-shortest"]
+        writer = imageio_ffmpeg.write_frames(args.out, (W, H), fps=FPS, codec="libx264", quality=None,
+                                             macro_block_size=8, output_params=out_params,
+                                             audio_path=audio, audio_codec="aac" if audio else None)
+        writer.send(None)
+        with Pool(args.workers) as pool:
+            for i, fr in enumerate(pool.imap(render_frame, range(total), chunksize=3)):
+                writer.send(fr)
+                if i % 30 == 0:
+                    print(f"  frame {i}/{total}  ({time.time() - t0:.1f}s)", flush=True)
+        writer.close()
+    except ImportError:
+        cmd = [
+            "ffmpeg", "-y",
+            "-f", "rawvideo", "-vcodec", "rawvideo",
+            "-s", f"{W}x{H}", "-pix_fmt", "rgb24", "-r", str(FPS),
+            "-i", "-",
+        ]
+        if audio:
+            cmd += ["-i", audio, "-c:a", "aac", "-b:a", "192k", "-shortest"]
+        cmd += ["-c:v", "libx264", "-preset", "fast", "-crf", "18", "-pix_fmt", "yuv420p", "-movflags", "+faststart", args.out]
+        proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stderr=subprocess.PIPE)
+        with Pool(args.workers) as pool:
+            for i, fr in enumerate(pool.imap(render_frame, range(total), chunksize=3)):
+                proc.stdin.write(fr.tobytes())
+                if i % 30 == 0:
+                    print(f"  frame {i}/{total}  ({time.time() - t0:.1f}s)", flush=True)
+        proc.stdin.close()
+        err = proc.stderr.read().decode("utf-8", errors="replace")
+        if proc.wait() != 0:
+            raise RuntimeError(f"ffmpeg failed:\n{err}")
+
     print(f"done -> {args.out}  ({time.time() - t0:.1f}s)")
 
 

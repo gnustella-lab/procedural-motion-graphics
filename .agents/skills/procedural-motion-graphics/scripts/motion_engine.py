@@ -58,14 +58,7 @@ def ease_out_elastic(x: float) -> float:
     return 2.0 ** (-10.0 * x) * math.sin((x * 10.0 - 0.75) * (2.0 * math.pi / 3.0)) + 1.0
 
 def spring(x: float, k: float = 7.0, w: float = 14.0) -> float:
-    """Damped harmonic spring oscillation: 1 - e^(-kx) * cos(wx).
-    
-    Provides natural, physically grounded overshoot and settling vibrations.
-    Parameters:
-        x: Normalized progress (x >= 0).
-        k: Damping coefficient (higher = quicker settling, e.g. 7).
-        w: Angular frequency (higher = more oscillations, e.g. 14).
-    """
+    """Damped harmonic spring oscillation: 1 - e^(-kx) * cos(wx)."""
     if x <= 0.0:
         return 0.0
     return 1.0 - math.exp(-k * x) * math.cos(w * x)
@@ -88,14 +81,7 @@ def lerpc(c1: Tuple[int, ...], c2: Tuple[int, ...], t: float) -> Tuple[int, ...]
     return tuple(int(lerp(a, b, t)) for a, b in zip(c1, c2))
 
 def squash_and_stretch(bounce: float, intensity: float = 0.35, power: float = 6.0, is_landing: bool = True) -> Tuple[float, float]:
-    """Calculate (sx, sy) scale factors for classic squash and stretch on ground contact.
-    
-    Args:
-        bounce: Normalized bounce height (0.0 at floor impact, 1.0 at peak arc).
-        intensity: Maximum squash amount (e.g. 0.35 for 35% wider).
-        power: Exponent controlling sharpness of ground impact zone.
-        is_landing: True if phase corresponds to descending/landing half of cycle.
-    """
+    """Calculate (sx, sy) scale factors for classic squash and stretch on ground contact."""
     sx = 1.0 + intensity * ((1.0 - bounce) ** power) * (1.0 if is_landing else 0.0)
     sy = 2.0 - sx
     return sx, sy
@@ -115,13 +101,23 @@ def hexc(hex_str: str) -> Tuple[int, int, int]:
     return tuple(int(hex_str[i:i+2], 16) for i in (0, 2, 4))
 
 def get_font(size: int, bold: bool = True) -> ImageFont.ImageFont:
-    """Load standard system geometric font with automatic cross-platform fallbacks."""
+    """Load standard system geometric font with automatic cross-platform fallbacks (Windows, macOS, Linux Inter/DejaVu)."""
     font_candidates = (
-        ["C:/Windows/Fonts/arialbd.ttf", "C:/Windows/Fonts/segoeuib.ttf",
-         "/System/Library/Fonts/Helvetica.ttc", "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"]
+        [
+            "C:/Windows/Fonts/segoeuib.ttf",
+            "C:/Windows/Fonts/arialbd.ttf",
+            "/usr/share/fonts/opentype/inter/Inter-Bold.otf",
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+            "/System/Library/Fonts/Helvetica.ttc",
+        ]
         if bold else
-        ["C:/Windows/Fonts/arial.ttf", "C:/Windows/Fonts/segoeui.ttf",
-         "/System/Library/Fonts/Helvetica.ttc", "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"]
+        [
+            "C:/Windows/Fonts/segoeui.ttf",
+            "C:/Windows/Fonts/arial.ttf",
+            "/usr/share/fonts/opentype/inter/Inter-Regular.otf",
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+            "/System/Library/Fonts/Helvetica.ttc",
+        ]
     )
     for path in font_candidates:
         try:
@@ -150,21 +146,18 @@ def rot_poly(cx: float, cy: float, r: float, n: int, ang: float) -> List[Tuple[f
 
 def polar_radius(shape_type: int, theta: float) -> float:
     """Calculate normalized polar radius r(theta) for 2D geometric shapes:
-    0 = Circle
-    1 = Rounded Square / Box
-    2 = Equilateral Triangle
-    3 = 5-Point Star
+    0 = Circle, 1 = Rounded Square / Box, 2 = Equilateral Triangle, 3 = 5-Point Star
     """
-    if shape_type == 0:  # Circle
+    if shape_type == 0:
         return 1.0
-    elif shape_type == 1:  # Square
+    elif shape_type == 1:
         cos_t = max(1e-5, abs(math.cos(theta)))
         sin_t = max(1e-5, abs(math.sin(theta)))
         return 0.86 / max(cos_t, sin_t)
-    elif shape_type == 2:  # Triangle
+    elif shape_type == 2:
         m = (theta + math.pi / 2.0) % (2.0 * math.pi / 3.0)
         return 0.5 * 1.15 / max(0.1, math.cos(m - math.pi / 3.0))
-    elif shape_type == 3:  # 5-Point Star
+    elif shape_type == 3:
         return 0.62 + 0.38 * (math.cos(5.0 * theta) ** 2) + 0.05
     return 1.0
 
@@ -195,12 +188,7 @@ def polar_to_cartesian(cx: float, cy: float, points: List[Tuple[float, float]],
 # ==============================================================================
 
 class Pen:
-    """Super-Sampled Anti-Aliasing (SSAA) drawing canvas.
-    
-    Draws onto a virtual canvas multiplied by scale factor K (default 1.5x) and
-    downsamples with Lanczos filtering upon export. This achieves razor-sharp vector
-    rendering without jagged edges or GPU dependencies.
-    """
+    """Super-Sampled Anti-Aliasing (SSAA) drawing canvas."""
     def __init__(self, bg: Union[Tuple[int, int, int], str], width: int = 1280, height: int = 720, k: float = 1.5):
         self.width = width
         self.height = height
@@ -220,6 +208,8 @@ class Pen:
 
     def rect(self, x0: float, y0: float, x1: float, y1: float, fill, r: float = 0.0) -> None:
         """Draw rectangle or rounded rectangle in base coordinates."""
+        if x1 <= x0 or y1 <= y0:
+            return
         b = [x0 * self.k, y0 * self.k, x1 * self.k, y1 * self.k]
         if r > 0.0:
             self.d.rounded_rectangle(b, r * self.k, fill=fill)
@@ -228,6 +218,8 @@ class Pen:
 
     def ell(self, cx: float, cy: float, r: float, fill=None, outline=None, width: float = 1.0) -> None:
         """Draw circle/ellipse in base coordinates."""
+        if r <= 0:
+            return
         b = [(cx - r) * self.k, (cy - r) * self.k, (cx + r) * self.k, (cy + r) * self.k]
         self.d.ellipse(b, fill=fill, outline=outline, width=max(1, int(width * self.k)))
 
@@ -305,10 +297,7 @@ def iris_wipe(img_curr: Image.Image, img_prev: Image.Image, progress: float, max
     return Image.composite(img_curr, img_prev, mask)
 
 def vertical_push_transition(img_curr: Image.Image, img_prev: Image.Image, progress: float) -> Image.Image:
-    """Vertical push/swipe transition where incoming screen pushes outgoing screen upward.
-    
-    Mirrors native mobile/desktop app screen navigation.
-    """
+    """Vertical push/swipe transition where incoming screen pushes outgoing screen upward."""
     progress = clamp(progress, 0.0, 1.0)
     k = ease_in_out_cubic(progress)
     off = int(k * img_curr.height)
@@ -388,12 +377,7 @@ def lissajous_gradient_background(xx: np.ndarray, yy: np.ndarray, t: float,
 
 def generative_cover(pen: Pen, x: float, y: float, size: float, seed: int,
                      base_color: Tuple[int, int, int], radius: float = 6.0) -> None:
-    """Generate procedural geometric album cover art with seeded variations (no external images).
-    
-    Kind 0: Overlapping translucent bubbles/dots.
-    Kind 1: Horizontal graphic bars.
-    Kind 2: Bold geometric triangle.
-    """
+    """Generate procedural geometric album cover art with seeded variations (no external images)."""
     pen.rect(x, y, x + size, y + size, base_color, r=radius)
     dark_tint = lerpc(base_color, (0, 0, 0), 0.35)
     rng = np.random.RandomState(seed)
